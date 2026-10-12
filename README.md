@@ -241,6 +241,10 @@ docker run -d --name ticket-hygiene --env-file .env -v ticket-hygiene-data:/data
 - **Health:** `python -m notifier health` exits 1 when the heartbeat is older than 5 min; the image uses it as its `HEALTHCHECK`.
 - After editing `config.py`, `config/` or the roster, rebuild and redeploy.
 
+### Pausing it on the Emergent platform
+
+`RUN_NOTIFIER` is the master switch. Set it to `false` in the deploy settings (`backend/.env` in the job's pod, which the platform reads at deploy time) and redeploy: the notifier and the watchdog stop, so nothing calls Trinity, Jev or Slack, and the dashboard stays up. Set it back to `true` and redeploy to resume. `DRY_RUN` only holds back Slack posts; the checks keep running.
+
 ### Down alert
 
 `python -m notifier watchdog` (started by the container) sends a Slack **DM to one person**, `DOWN_ALERT["dm"]` in `config.py`, never the channel:
