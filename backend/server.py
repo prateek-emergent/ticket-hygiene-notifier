@@ -161,6 +161,7 @@ async def forward(scope, receive, send) -> None:
         url += "?" + scope["query_string"].decode("latin-1")
     headers = [(k.decode("latin-1"), v.decode("latin-1")) for k, v in scope["headers"]
                if k.decode("latin-1").lower() not in HOP_BY_HOP | {"content-length"}]
+    started = False
     try:
         async with State.session.request(scope["method"], url, headers=headers, data=body or None,
                                          allow_redirects=False) as resp:
@@ -170,6 +171,7 @@ async def forward(scope, receive, send) -> None:
                 out = [(k, v) for k, v in out if k not in (b"content-length", b"x-accel-buffering")]
                 out.append((b"x-accel-buffering", b"no"))  # nginx must not hold back live events
             await send({"type": "http.response.start", "status": resp.status, "headers": out})
+            started = True
 
             async def pump():
                 async for chunk in resp.content.iter_any():
@@ -188,6 +190,9 @@ async def forward(scope, receive, send) -> None:
                 await send({"type": "http.response.body", "body": b"", "more_body": False})
     except (aiohttp.ClientError, asyncio.TimeoutError) as e:
         log.warning("dashboard unreachable for %s: %s", scope["path"], e)
+        if started:  # the answer had begun: just end it
+            await send({"type": "http.response.body", "body": b"", "more_body": False})
+            return
         await send({"type": "http.response.start", "status": 502, "headers": [(b"content-type", b"text/plain")]})
         await send({"type": "http.response.body", "body": b"dashboard not ready\n"})
 
