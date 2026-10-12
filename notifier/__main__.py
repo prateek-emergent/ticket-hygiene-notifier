@@ -229,7 +229,7 @@ async def cmd_check(cfg: Config, ticket_id: str, use_llm: bool) -> None:
 def cmd_health(max_age_minutes: float) -> int:
     """0 when the notifier's heartbeat in state.db is recent, else 1 (with the reason on stderr)."""
     db = os.getenv("STATE_DB", "state.db")
-    if not os.path.exists(db):
+    if not os.getenv("MONGO_URL", "").strip() and not os.path.exists(db):  # with MongoDB there is no file
         print(f"unhealthy: {db} does not exist yet", file=sys.stderr)
         return 1
     beat = Store(db).get("heartbeat")

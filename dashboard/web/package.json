@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postbuild": "node -e \"const fs=require('fs');fs.rmSync('../../frontend/prebuilt',{recursive:true,force:true});fs.cpSync('../static','../../frontend/prebuilt',{recursive:true})\""
   },
   "dependencies": {
     "@fontsource-variable/red-hat-mono": "^5.3.0",

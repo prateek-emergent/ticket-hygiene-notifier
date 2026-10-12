@@ -1,0 +1,9 @@
+{
+  "name": "ticket-hygiene-dashboard-ui",
+  "private": true,
+  "version": "1.0.0",
+  "description": "The Emergent platform builds frontend/ with `yarn build`; this copies the prebuilt dashboard UI (dashboard/static, mirrored into prebuilt/) to build/.",
+  "scripts": {
+    "build": "node build.js"
+  }
+}
