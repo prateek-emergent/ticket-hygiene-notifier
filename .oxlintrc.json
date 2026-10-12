@@ -1,0 +1,9 @@
+{
+  "ignorePatterns": [
+    "frontend/build/**",
+    "frontend/prebuilt/**",
+    "dashboard/static/**",
+    "dashboard/web/dist/**",
+    "**/*.min.js"
+  ]
+}

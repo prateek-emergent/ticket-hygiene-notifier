@@ -25,3 +25,6 @@ data/*
 chat_export*
 # macOS
 .DS_Store
+frontend/build/
+frontend/node_modules/
+test_reports/

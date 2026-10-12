@@ -16,11 +16,14 @@ are implemented the same way in both: an atomic claim and an insert-or-ignore, n
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
 from .mongo import DuplicateKeyError, ensure_indexes, get_db, mongo_enabled, next_id
+
+log = logging.getLogger(__name__)
 
 # Columns added after the first release; created on open when missing.
 MIGRATIONS = {
@@ -323,15 +326,24 @@ class MongoStore:
                      *, ticket_num: int | None = None, subject: str | None = None, engineer_name: str | None = None,
                      associates: list[str] | None = None, reason: str | None = None, url: str | None = None,
                      dry_run: bool | None = None) -> None:
-        """Insert-or-ignore: never a second row for the same (rule, trigger_event_id). The unique index enforces
-        it; a duplicate insert is swallowed, exactly like SQLite's INSERT OR IGNORE."""
-        try:
-            self.db.alerts.insert_one({
-                "id": next_id(self.db, "alerts"), "rule": rule, "trigger_event_id": trigger_event_id,
-                "ticket_id": ticket_id, "engineer": engineer, "payload": json.dumps(payload, default=str),
-                "sent_at": _now(), "ticket_num": ticket_num, "subject": subject, "engineer_name": engineer_name,
-                "associates": json.dumps(associates) if associates is not None else None, "reason": reason,
-                "url": url, "dry_run": None if dry_run is None else int(dry_run),
-            })
-        except DuplicateKeyError:
-            pass
+        """Insert-or-ignore: never a second row for the same (rule, trigger_event_id), like SQLite's INSERT OR
+        IGNORE. An upsert keyed on that pair; a DuplicateKeyError is ignored only when that pair's row now exists
+        (two upserts raced). Any other collision (the integer `id`) is logged and retried with a fresh id, so
+        the row is never silently lost."""
+        key = {"rule": rule, "trigger_event_id": trigger_event_id}
+        for attempt in range(3):
+            try:
+                self.db.alerts.update_one(key, {"$setOnInsert": {
+                    "id": next_id(self.db, "alerts"), "rule": rule, "trigger_event_id": trigger_event_id,
+                    "ticket_id": ticket_id, "engineer": engineer, "payload": json.dumps(payload, default=str),
+                    "sent_at": _now(), "ticket_num": ticket_num, "subject": subject, "engineer_name": engineer_name,
+                    "associates": json.dumps(associates) if associates is not None else None, "reason": reason,
+                    "url": url, "dry_run": None if dry_run is None else int(dry_run),
+                }}, upsert=True)
+                return
+            except DuplicateKeyError as e:
+                if self.already_alerted(rule, trigger_event_id):
+                    return  # another copy recorded the same alert first
+                log.error("record_alert %s %s: duplicate key other than (rule, trigger_event_id), attempt %d: %s",
+                          rule, trigger_event_id, attempt + 1, e)
+        raise RuntimeError(f"could not record alert {rule} {trigger_event_id}: alert id collisions")

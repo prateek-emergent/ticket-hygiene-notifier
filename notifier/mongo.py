@@ -60,6 +60,13 @@ def ensure_indexes(db) -> None:
 
     db.dashboard_sessions.create_index("token_hash", unique=True)
 
+    # Raise each id counter to at least the highest id in use, so a lost or stale _counters document can't
+    # hand out an id that already exists.
+    for name in ("alerts", "activity", "feedback"):
+        top = db[name].find_one({"id": {"$ne": None}}, sort=[("id", -1)], projection={"id": 1})
+        if top is not None:
+            db["_counters"].update_one({"_id": name}, {"$max": {"seq": top["id"]}}, upsert=True)
+
 
 def next_id(db, name: str) -> int:
     """A per-collection auto-incrementing integer, standing in for SQLite's AUTOINCREMENT rowids."""
