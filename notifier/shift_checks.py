@@ -171,7 +171,7 @@ class ShiftChecks:
                            outcome="flagged" if flagged else "clean")
 
     def _alert_count(self, rule: Rule) -> int:
-        return self.monitor.store.db.execute("SELECT COUNT(*) FROM alerts WHERE rule=?", (rule.value,)).fetchone()[0]
+        return self.monitor.store.count_alerts(rule.value)
 
     async def _sweep_off_shift(self, trinity: Trinity, cal: ShiftCalendar, now: datetime) -> None:
         store = self.monitor.store
