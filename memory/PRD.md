@@ -30,6 +30,13 @@ config.py, the checks, or the UI. Keep DRY_RUN=true.
    RUN_NOTIFIER=true) and frontend/.env. This resolved the build-context error
    `read env file backend/.env: no such file or directory`. Verified `uvicorn server:app` boots in both
    SQLite (preview) and MongoDB modes; /health 200; notifier runs on Mongo with DRY_RUN=true.
+4. Deploy fix #2: the repo-root `.dockerignore` (`*`+whitelist, written for the app's own docker-compose) was
+   filtering out the farm template's COPY inputs, so build_image failed with every COPY "not found". Kept the
+   whitelist (secrets/research/data still excluded) and ADDED the template inputs: !backend/ !frontend/
+   !nginx.conf !entrypoint.sh !pip-cache/ (and kept frontend/node_modules/ excluded). Per deployer RCA
+   b0ae5b64 Option B.
+5. Lint: added /app/.oxlintrc.json ignoring generated/minified bundles (frontend/prebuilt, frontend/build,
+   dashboard/static) so the minified vendor JS no longer trips the no-undef blocker.
 
 ## Deployment notes
 - Platform must: 1 replica, no autoscaling, never park; expose port 8001; inject Atlas MONGO_URL + DB_NAME

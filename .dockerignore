@@ -13,3 +13,12 @@ dashboard/web/
 !docker/
 !scripts/check_slack.py
 **/__pycache__
+# Emergent farm template build inputs: these MUST reach the build context or every template COPY fails
+# (COPY backend/, frontend/, nginx.conf, entrypoint.sh, pip-cache/...). Do not remove these re-includes.
+!backend/
+!frontend/
+!nginx.conf
+!entrypoint.sh
+!pip-cache/
+# ...but still keep generated/vendored junk out of the (now re-included) frontend/.
+frontend/node_modules/
