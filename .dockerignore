@@ -13,3 +13,14 @@ dashboard/web/
 !docker/
 !scripts/check_slack.py
 **/__pycache__
+# Emergent platform build inputs (it uses this same file): its template COPYs backend/, frontend/,
+# nginx.conf, entrypoint.sh and pip-cache/, and its entrypoint reads etc/supervisor/conf.d/supervisord.conf.
+# Hiding any of them fails the build or makes the container exit on start.
+!backend/
+!frontend/
+frontend/node_modules/
+frontend/build/
+!nginx.conf
+!entrypoint.sh
+!pip-cache/
+!etc/
