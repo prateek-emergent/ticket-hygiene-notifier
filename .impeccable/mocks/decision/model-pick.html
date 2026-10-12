@@ -1,0 +1,72 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Third Umpire</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;color:#fff;font:14px/1.45 Barlow,system-ui,sans-serif;background:radial-gradient(ellipse at 50% -10%,#24407a 0,#0A1530 55%,#060d1f 100%)}
+.cond{font-family:"Barlow Condensed",sans-serif;text-transform:uppercase;letter-spacing:.04em}
+.glass{background:rgba(19,34,74,.55);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);border-radius:14px}
+header{height:60px;display:flex;align-items:center;gap:20px;padding:0 28px;border-bottom:1px solid rgba(255,255,255,.08)}
+h1{font-family:"Barlow Condensed";font-size:22px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+nav{display:flex;gap:4px}nav a{padding:7px 12px;border-radius:8px;color:#AAB6D3;font-weight:500}nav a.on{background:rgba(255,255,255,.1);color:#fff}
+.sp{flex:1}.pill{padding:6px 12px;border-radius:20px;background:rgba(255,255,255,.08);color:#C8D2EA}
+.score{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;padding:18px 28px}
+.bug{padding:12px 16px}.bug .k{font-size:13px;color:#AAB6D3}.bug .v{font-family:"Barlow Condensed";font-size:34px;font-weight:700;line-height:1.1}
+.bug .v small{font-size:16px;color:#AAB6D3;font-weight:500}
+.main{display:grid;grid-template-columns:1fr 420px;gap:18px;padding:0 28px}
+.review{padding:24px 28px;height:640px}
+.tag{display:inline-block;padding:4px 10px;border-radius:6px;background:#E5243B;font-family:"Barlow Condensed";font-weight:700;letter-spacing:.08em;font-size:14px}
+h2{font-size:26px;font-weight:600;margin:14px 0 4px;letter-spacing:-.01em}
+.meta{color:#AAB6D3}
+.quote{margin:22px 0;padding:16px 18px;border-left:3px solid rgba(255,255,255,.3);background:rgba(255,255,255,.04);border-radius:0 10px 10px 0;color:#DCE3F3;font-size:15px}
+.track{margin:26px 0 8px;position:relative;height:56px}
+.bar{position:absolute;left:0;right:0;top:22px;height:12px;border-radius:6px;background:linear-gradient(90deg,#E5243B 0,#E5243B 40%,#F5B700 40%,#F5B700 60%,#1FAF6A 60%)}
+.ball{position:absolute;left:12%;top:12px;width:32px;height:32px;border-radius:50%;background:#fff;box-shadow:0 0 0 6px rgba(255,255,255,.18),0 0 24px #fff}
+.ticks{display:flex;justify-content:space-between;color:#AAB6D3;font-size:12px}
+.zones{display:grid;grid-template-columns:40fr 20fr 40fr;margin-top:6px;font-family:"Barlow Condensed";font-weight:600;letter-spacing:.08em;font-size:13px}
+.zones span:nth-child(1){color:#ff8a97}.zones span:nth-child(2){color:#F5B700;text-align:center}.zones span:nth-child(3){color:#6ee0a6;text-align:right}
+.btns{display:flex;gap:12px;margin-top:30px}
+.btn{padding:12px 22px;border-radius:10px;font-family:"Barlow Condensed";font-size:18px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+.up{background:#fff;color:#0A1530}.ov{background:transparent;border:1px solid rgba(255,255,255,.35)}
+.note{flex:1;padding:12px 14px;border-radius:10px;background:rgba(255,255,255,.06);color:#8C99B8;border:1px solid rgba(255,255,255,.1)}
+.feed{padding:18px 20px;height:640px;overflow:hidden}
+.feed h3{font-family:"Barlow Condensed";font-size:16px;letter-spacing:.1em;text-transform:uppercase;color:#AAB6D3;margin-bottom:10px}
+.ball2{display:grid;grid-template-columns:44px 28px 1fr;gap:10px;padding:10px 0;border-top:1px solid rgba(255,255,255,.07);align-items:start}
+.t{color:#8C99B8;font-size:12px;font-variant-numeric:tabular-nums}
+.c{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-family:"Barlow Condensed";font-weight:700;font-size:13px}
+.c.o{background:#1FAF6A}.c.w{background:#E5243B}.c.u{background:#F5B700;color:#0A1530}.c.d{background:rgba(255,255,255,.14)}
+</style></head><body>
+<header><h1>Ticket Hygiene</h1><nav><a class="on">Review</a><a>Live</a><a>Team</a><a>Tickets</a><a>System</a></nav><div class="sp"></div>
+<span class="pill">Prateek Maithil's team</span><span class="pill">Today</span><span class="pill">● Live</span><span class="pill">◐</span></header>
+<section class="score">
+  <div class="bug glass"><div class="k cond">Pending</div><div class="v">9 <small>alerts</small></div></div>
+  <div class="bug glass"><div class="k cond">Taken from colleague</div><div class="v">5</div></div>
+  <div class="bug glass"><div class="k cond">Overwatch grab</div><div class="v">2</div></div>
+  <div class="bug glass"><div class="k cond">Status vs shift</div><div class="v">3</div></div>
+  <div class="bug glass"><div class="k cond">Off-shift hold</div><div class="v">1</div></div>
+  <div class="bug glass"><div class="k cond">Overturned</div><div class="v">2 <small>of 14</small></div></div>
+</section>
+<section class="main">
+  <div class="review glass">
+    <span class="tag">ON-FIELD CALL: FLAGGED</span><span class="meta" style="margin-left:12px">Under review · 1 of 4 unreviewed</span>
+    <h2>Govind moved #273283 to Pending</h2>
+    <div class="meta">Rule 1 · Pending with no open question · 10:02 UTC · checked by von</div>
+    <div class="quote">“The custom domain is now connected and SSL has been issued. Everything should load on www.example-shop.in. Thanks for building with Emergent!”</div>
+    <div class="cond" style="color:#AAB6D3;font-size:13px">Ball-tracking · chance the reply asks the customer something</div>
+    <div class="track"><div class="bar"></div><div class="ball"></div></div>
+    <div class="ticks"><span>0%</span><span>40%</span><span>60%</span><span>100%</span></div>
+    <div class="zones"><span>ASKS NOTHING · ALERT</span><span>UMPIRE'S CALL</span><span>ASKS · NO ALERT</span></div>
+    <div class="btns"><span class="btn up">Upheld</span><span class="btn ov">Overturned</span><span class="note">Add a note for the team (optional)</span></div>
+  </div>
+  <aside class="feed glass"><h3>Ball by ball</h3>
+    <div class="ball2"><span class="t">10:14</span><span class="c d">·</span><span>Scanned 37 updated tickets, scheduled 2 checks</span></div>
+    <div class="ball2"><span class="t">10:13</span><span class="c o">✓</span><span>Mani · #273311 Pending: reply asks for the job id (von 91%)</span></div>
+    <div class="ball2"><span class="t">10:11</span><span class="c u">?</span><span>Zeel · #273290 Pending: umpire's call (von 52%), no alert</span></div>
+    <div class="ball2"><span class="t">10:09</span><span class="c d">·</span><span>Himesh · #273305 assignment: clean</span></div>
+    <div class="ball2"><span class="t">10:02</span><span class="c w">!</span><span>Govind · #273283 Pending: asks nothing (von 12%), alerted</span></div>
+    <div class="ball2"><span class="t">09:58</span><span class="c o">✓</span><span>Pramod · #273277 Pending, Spanish reply: asks (decider:4b 88%)</span></div>
+    <div class="ball2"><span class="t">09:48</span><span class="c w">!</span><span>Akshayaa took #273301 from Renuka, alerted</span></div>
+    <div class="ball2"><span class="t">09:45</span><span class="c d">·</span><span>Scanned 29 updated tickets, scheduled 3 checks</span></div>
+  </aside>
+</section>
+</body></html>

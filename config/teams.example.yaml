@@ -1,0 +1,26 @@
+# Normally generated from the team sheet (exported as TSV) with:
+#   python scripts/import_teams.py data/table.tsv --associate "Lead Name=lead@emergent.sh" ...
+# Emails must match Trinity agent emails exactly.
+# Only engineers listed here are monitored; everyone else is ignored.
+# Alerts for an engineer tag every associate of their team.
+
+teams:
+  - name: Team A
+    associates:
+      - team.lead.a@emergent.sh
+    engineers:
+      - engineer.one@emergent.sh
+      - engineer.two@emergent.sh
+
+  - name: Team B
+    associates:
+      - team.lead.b@emergent.sh
+    engineers:
+      - engineer.three@emergent.sh
+
+# People allowed to reassign tickets without being flagged (associates above are already exempt).
+exempt_from_reassign_rule: []
+
+# Optional: pin Slack user IDs when an email lookup fails (e.g. Slack email differs from Trinity email).
+slack_ids: {}
+#   team.lead.a@emergent.sh: U0123ABCD

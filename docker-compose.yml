@@ -1,0 +1,16 @@
+# For a VM or server with Docker:  docker compose up -d --build   (logs: docker compose logs -f)
+# Reads secrets from .env next to this file. Only one copy may run: two would post every alert twice.
+services:
+  ticket-hygiene:
+    build: .
+    env_file: .env
+    environment:
+      STATE_DB: /data/state.db
+    volumes:
+      - notifier-data:/data
+    ports:
+      - "127.0.0.1:8090:8090"  # dashboard, this machine only; put an https proxy in front to share it (D10)
+    restart: unless-stopped
+
+volumes:
+  notifier-data:

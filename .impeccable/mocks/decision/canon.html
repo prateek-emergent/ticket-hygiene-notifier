@@ -1,0 +1,39 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Category standard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:#0F1115;color:#E6E8EC;font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;position:relative}
+.blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.45}
+aside{position:absolute;left:0;top:0;bottom:0;width:240px;background:rgba(28,31,38,.6);backdrop-filter:blur(20px);border-right:1px solid rgba(255,255,255,.06);padding:22px 16px}
+.brand{font-weight:700;font-size:16px;margin-bottom:28px;padding-left:8px}
+aside a{display:block;padding:10px 12px;border-radius:8px;color:#9AA0AC;margin-bottom:4px}aside a.on{background:rgba(99,102,241,.18);color:#fff}
+main{position:absolute;left:240px;right:0;top:0;bottom:0;padding:24px 32px}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:22px}.top h1{font-size:22px;font-weight:600;flex:1}
+.chip{padding:7px 12px;border-radius:8px;background:rgba(255,255,255,.06);color:#C4C8D0}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:18px}
+.card{background:rgba(28,31,38,.55);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:18px 20px}
+.k{color:#9AA0AC;font-size:13px}.v{font-size:30px;font-weight:600;margin-top:6px}.d{font-size:12px;color:#22C55E}
+.chart{height:270px;margin-bottom:18px;position:relative}
+.chart svg{position:absolute;left:20px;right:20px;bottom:20px;width:calc(100% - 40px);height:200px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px 8px;border-bottom:1px solid rgba(255,255,255,.06)}th{color:#9AA0AC;font-weight:500;font-size:12px}
+.b{padding:3px 8px;border-radius:6px;font-size:12px}.b.r{background:rgba(239,68,68,.15);color:#F87171}.b.g{background:rgba(34,197,94,.15);color:#4ADE80}
+</style></head><body>
+<div class="blob" style="left:300px;top:-120px;width:520px;height:420px;background:#6366F1"></div>
+<div class="blob" style="right:-80px;bottom:-60px;width:520px;height:420px;background:#0EA5E9"></div>
+<aside><div class="brand">Ticket Hygiene</div><a class="on">Overview</a><a>Alerts</a><a>Engineers</a><a>Tickets</a><a>Activity</a><a>System</a></aside>
+<main>
+  <div class="top"><h1>Overview</h1><span class="chip">Prateek Maithil's team</span><span class="chip">Last 24 hours</span><span class="chip">◐</span></div>
+  <div class="kpis">
+    <div class="card"><div class="k">Alerts</div><div class="v">20</div><div class="d">−12% vs yesterday</div></div>
+    <div class="card"><div class="k">Checks run</div><div class="v">1,284</div><div class="d">+4%</div></div>
+    <div class="card"><div class="k">Unreviewed</div><div class="v">4</div><div class="d">of 20</div></div>
+    <div class="card"><div class="k">False alarms</div><div class="v">2</div><div class="d">10%</div></div>
+  </div>
+  <div class="card chart"><div class="k">Alerts and checks per hour</div>
+    <svg viewBox="0 0 1000 200" preserveAspectRatio="none"><polyline fill="none" stroke="#6366F1" stroke-width="3" points="0,150 80,120 160,140 240,90 320,110 400,60 480,95 560,70 640,120 720,80 800,100 880,50 1000,90"/><polyline fill="none" stroke="#EF4444" stroke-width="2" points="0,190 80,180 160,185 240,170 320,182 400,160 480,178 560,165 640,186 720,170 800,176 880,150 1000,172"/></svg></div>
+  <div class="card"><table><tr><th>Time</th><th>Rule</th><th>Ticket</th><th>Engineer</th><th>Status</th></tr>
+    <tr><td>10:02</td><td>Pending with no open question</td><td>#273283</td><td>Govind</td><td><span class="b r">Unreviewed</span></td></tr>
+    <tr><td>09:48</td><td>Taken from a colleague</td><td>#273301</td><td>Akshayaa</td><td><span class="b r">Unreviewed</span></td></tr>
+    <tr><td>09:31</td><td>Grabbed during Overwatch</td><td>#273250</td><td>Govind</td><td><span class="b g">Correct</span></td></tr></table></div>
+</main>
+</body></html>

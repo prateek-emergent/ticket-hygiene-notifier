@@ -1,0 +1,5 @@
+# Who may sign in to the dashboard with Google. Copy to config/dashboard_users.yaml (git-ignored).
+# Anyone not listed is refused, even with a valid @emergent.sh Google account.
+allowed:
+  - associate.one@emergent.sh
+  - associate.two@emergent.sh

@@ -1,0 +1,15 @@
+# What goes into the image. Everything else stays in the project folder (nothing is deleted); it is just not
+# copied in: .env and other secrets, customer data (data/escalations, data/kb_research), local models (.tools),
+# research, chat exports, tests and the dashboard's source and node_modules.
+*
+!requirements.txt
+!config.py
+!notifier/
+!dashboard/
+dashboard/web/
+!kb/
+!config/
+!data/Roster_*.csv
+!docker/
+!scripts/check_slack.py
+**/__pycache__

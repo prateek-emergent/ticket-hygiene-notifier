@@ -1,0 +1,41 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Concourse Board</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Archivo:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:linear-gradient(180deg,#2A2D30,#111213 30%);color:#F4F4F0;font:14px/1.4 Archivo,system-ui,sans-serif}
+header{height:64px;display:flex;align-items:center;gap:18px;padding:0 32px;background:rgba(255,255,255,.04);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.08)}
+h1{font-family:"Archivo Narrow";font-size:22px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+nav{display:flex;gap:6px}nav a{padding:8px 12px;border-radius:8px;color:#A9ABA6}nav a.on{background:rgba(255,255,255,.1);color:#F4F4F0}
+.sp{flex:1}.chip{padding:6px 12px;border-radius:8px;background:rgba(255,255,255,.07);color:#D6D7D2}
+.clock{font-family:"Archivo Narrow";font-size:30px;font-weight:600;letter-spacing:.05em}
+.board{margin:24px 32px;border-radius:14px;background:rgba(17,18,19,.7);border:1px solid rgba(255,255,255,.1);overflow:hidden}
+.cols,.r{display:grid;grid-template-columns:110px 300px 130px 200px 140px 1fr;align-items:center}
+.cols{padding:12px 20px;font-family:"Archivo Narrow";font-weight:600;color:#A9ABA6;letter-spacing:.1em;text-transform:uppercase;font-size:13px;border-bottom:1px solid rgba(255,255,255,.08)}
+.r{padding:0 20px;height:62px;border-bottom:1px solid rgba(255,255,255,.05)}
+.f{display:flex;gap:3px}.f b{display:inline-grid;place-items:center;min-width:22px;height:34px;padding:0 3px;border-radius:4px;background:linear-gradient(180deg,#26282a 50%,#1d1f21 50%);font-family:"Archivo Narrow";font-weight:700;font-size:20px;box-shadow:inset 0 -1px 0 rgba(0,0,0,.6)}
+.txt{font-family:"Archivo Narrow";font-weight:600;font-size:19px;letter-spacing:.03em;text-transform:uppercase}
+.st{font-family:"Archivo Narrow";font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:16px}
+.lamp{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:10px;vertical-align:middle}
+.amber .lamp{background:#F2B33D;box-shadow:0 0 10px #F2B33D}.amber .st{color:#F2B33D}
+.red{background:rgba(184,53,58,.14)}.red .lamp{background:#B8353A;box-shadow:0 0 10px #ff5b61}.red .st{color:#ff7a7f}
+.ok .lamp{background:#8f918c}.ok .st{color:#A9ABA6}
+.foot{display:flex;gap:24px;padding:0 32px;color:#A9ABA6}
+</style></head><body>
+<header><h1>Ticket Hygiene</h1><nav><a class="on">Board</a><a>Alerts</a><a>Team</a><a>Tickets</a><a>System</a></nav><div class="sp"></div>
+<span class="chip">Prateek Maithil's team</span><span class="chip">● Live</span><span class="chip">◐</span><span class="clock">10:14</span></header>
+<div class="board">
+  <div class="cols"><span>Due</span><span>Rule</span><span>Ticket</span><span>Engineer</span><span>Model</span><span>Status</span></div>
+  <div class="r amber"><span class="f"><b>1</b><b>0</b><b>:</b><b>1</b><b>6</b></span><span class="txt">Pending check</span><span class="txt">#273320</span><span class="txt">Mani</span><span class="txt">—</span><span class="st"><i class="lamp"></i>Grace period, 2 min</span></div>
+  <div class="r amber"><span class="f"><b>1</b><b>0</b><b>:</b><b>1</b><b>9</b></span><span class="txt">Reassignment</span><span class="txt">#273318</span><span class="txt">Himesh</span><span class="txt">—</span><span class="st"><i class="lamp"></i>Grace period, 5 min</span></div>
+  <div class="r ok"><span class="f"><b>1</b><b>0</b><b>:</b><b>1</b><b>3</b></span><span class="txt">Pending check</span><span class="txt">#273311</span><span class="txt">Mani</span><span class="txt">von 91%</span><span class="st"><i class="lamp"></i>Asks the customer</span></div>
+  <div class="r ok"><span class="f"><b>1</b><b>0</b><b>:</b><b>1</b><b>1</b></span><span class="txt">Pending check</span><span class="txt">#273290</span><span class="txt">Zeel</span><span class="txt">von 52%</span><span class="st"><i class="lamp"></i>Uncertain, no alert</span></div>
+  <div class="r red"><span class="f"><b>1</b><b>0</b><b>:</b><b>0</b><b>2</b></span><span class="txt">Pending check</span><span class="txt">#273283</span><span class="txt">Govind</span><span class="txt">von 12%</span><span class="st"><i class="lamp"></i>Flagged · alerted</span></div>
+  <div class="r ok"><span class="f"><b>0</b><b>9</b><b>:</b><b>5</b><b>8</b></span><span class="txt">Pending check</span><span class="txt">#273277</span><span class="txt">Pramod</span><span class="txt">decider 88%</span><span class="st"><i class="lamp"></i>Asks · Spanish</span></div>
+  <div class="r red"><span class="f"><b>0</b><b>9</b><b>:</b><b>4</b><b>8</b></span><span class="txt">Reassignment</span><span class="txt">#273301</span><span class="txt">Akshayaa</span><span class="txt">—</span><span class="st"><i class="lamp"></i>Flagged · from Renuka</span></div>
+  <div class="r ok"><span class="f"><b>0</b><b>9</b><b>:</b><b>4</b><b>1</b></span><span class="txt">Overwatch close</span><span class="txt">#273266</span><span class="txt">Sayansh</span><span class="txt">—</span><span class="st"><i class="lamp"></i>Clean</span></div>
+  <div class="r red"><span class="f"><b>0</b><b>9</b><b>:</b><b>3</b><b>1</b></span><span class="txt">Overwatch close</span><span class="txt">#273250</span><span class="txt">Govind</span><span class="txt">—</span><span class="st"><i class="lamp"></i>Flagged · alerted</span></div>
+  <div class="r ok"><span class="f"><b>0</b><b>9</b><b>:</b><b>2</b><b>4</b></span><span class="txt">Status vs shift</span><span class="txt">—</span><span class="txt">Yashwanth</span><span class="txt">—</span><span class="st"><i class="lamp"></i>Online as expected</span></div>
+</div>
+<div class="foot"><span>41 checks in the last hour</span><span>3 alerts</span><span>4 unreviewed for your team</span><span>Notifier healthy · model A</span></div>
+</body></html>

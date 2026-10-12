@@ -1,0 +1,99 @@
+# Generated from data/table.tsv by scripts/import_teams.py. Re-run it when the sheet changes.
+# Only the engineers below are monitored; everyone else is ignored.
+teams:
+- name: Hridaya Madaan's team
+  associates:
+  - hridaya@emergent.sh
+  engineers:
+  - pramod@emergent.sh
+  - venkatesh@emergent.sh
+  - nippun@emergent.sh
+  - mani.r@emergent.sh
+  - anup@emergent.sh
+  - disha.b@emergent.sh
+  - govind@emergent.sh
+- name: Sutikshan Mahajan's team
+  associates:
+  - sutikshan@emergent.sh
+  engineers:
+  - heeyaichen@emergent.sh
+  - bhavya@emergent.sh
+  - himesh@emergent.sh
+  - nidhi.prajapati@emergent.sh
+  - vanshika@emergent.sh
+  - srithin@emergent.sh
+- name: Shreyas Gowda's team
+  associates:
+  - shreyas.g@emergent.sh
+  engineers:
+  - nandika@emergent.sh
+  - yashwanth.balaji@emergent.sh
+  - sayansh@emergent.sh
+  - bhagabati@emergent.sh
+  - darshan@emergent.sh
+  - dixit@emergent.sh
+  - prashant.a@emergent.sh
+- name: Subrahmanya KR's team
+  associates:
+  - subrahmanya@emergent.sh
+  engineers:
+  - akshayaa@emergent.sh
+  - mohan@emergent.sh
+  - aadhithiyan@emergent.sh
+  - parasmani.v@emergent.sh
+  - prathu@emergent.sh
+  - aditya.santosh@emergent.sh
+  - sai.akshay@emergent.sh
+  - kratika@emergent.sh
+- name: Prateek Maithil's team
+  associates:
+  - prateek.m@emergent.sh
+  engineers:
+  - shashi@emergent.sh
+  - sumit.d@emergent.sh
+  - saunak@emergent.sh
+  - harleen@emergent.sh
+  - arjya@emergent.sh
+  - anantabh@emergent.sh
+exempt_from_reassign_rule: []
+slack_ids: {}
+names:
+  pramod@emergent.sh: Pramod GG
+  venkatesh@emergent.sh: Venkatesh Verma
+  nippun@emergent.sh: Nippun Jay Bobbili
+  mani.r@emergent.sh: Mani Rohith
+  anup@emergent.sh: Anup Kumar
+  disha.b@emergent.sh: Disha Baghel
+  govind@emergent.sh: Govind
+  heeyaichen@emergent.sh: Heeyaichen Konsam
+  bhavya@emergent.sh: Bhavya Jamar
+  himesh@emergent.sh: Himesh
+  nidhi.prajapati@emergent.sh: Nidhi Prajapati
+  vanshika@emergent.sh: Vanshika
+  srithin@emergent.sh: Srithin Chillamcharla
+  nandika@emergent.sh: Nandika
+  yashwanth.balaji@emergent.sh: Yashwanth
+  sayansh@emergent.sh: Sayansh Chopra
+  bhagabati@emergent.sh: Bhagabati Panda
+  darshan@emergent.sh: Darshan Bondre
+  dixit@emergent.sh: Dixit Pansuriya
+  prashant.a@emergent.sh: Prashant Agrawal
+  akshayaa@emergent.sh: Akshayaa
+  mohan@emergent.sh: Mohan G
+  aadhithiyan@emergent.sh: Aadhithiyan K S
+  parasmani.v@emergent.sh: Parasmani
+  prathu@emergent.sh: Prathu
+  aditya.santosh@emergent.sh: Aditya K. Santosh
+  sai.akshay@emergent.sh: Sai Akshay Gandlapalli
+  kratika@emergent.sh: Kratika
+  shashi@emergent.sh: Shashi Kumar
+  sumit.d@emergent.sh: Sumit Dwivedi
+  saunak@emergent.sh: Saunak Ghosh
+  harleen@emergent.sh: Harleen Kaur
+  arjya@emergent.sh: Arjya Dutta
+  anantabh@emergent.sh: Anantabh
+  hridaya@emergent.sh: Hridaya Madaan
+  sutikshan@emergent.sh: Sutikshan Mahajan
+  shreyas.g@emergent.sh: Shreyas Gowda
+  subrahmanya@emergent.sh: Subrahmanya KR
+  prateek.m@emergent.sh: Prateek Maithil

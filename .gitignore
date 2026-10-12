@@ -1,0 +1,27 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+state.db
+state.db-*
+dashboard/web/node_modules/
+# dashboard design review captures show real staff names and customer text
+.impeccable/review/
+.impeccable/questions/
+.pytest_cache/
+.tools/
+fake_slack_posts*.jsonl
+simulation/
+# team rosters: names, emails and shifts of staff
+Roster_*.csv
+Roster_*.xlsx
+# input files (staff names, emails, shifts); see data/README.md
+data/*
+!data/README.md
+# The repo is private (decided 2026-10-12): the deployed app needs the current roster, the team list
+# (config/teams.yaml) and the dashboard access list (config/dashboard_users.yaml). Staff data only.
+!data/Roster_L1_L2_*.csv
+# chat transcripts: they contain API keys pasted while setting up (D17)
+chat_export*
+# macOS
+.DS_Store

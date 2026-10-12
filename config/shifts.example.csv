@@ -1,0 +1,10 @@
+email,day,start,end
+engineer.one@emergent.sh,Mon,09:00,18:00
+engineer.one@emergent.sh,Tue,09:00,18:00
+engineer.one@emergent.sh,Wed,09:00,18:00
+engineer.one@emergent.sh,Thu,09:00,18:00
+engineer.one@emergent.sh,Fri,09:00,18:00
+engineer.one@emergent.sh,Sat,off,
+engineer.one@emergent.sh,Sun,off,
+engineer.two@emergent.sh,Mon,21:00,06:00
+engineer.two@emergent.sh,2026-10-12,13:00,22:00

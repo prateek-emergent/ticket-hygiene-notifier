@@ -1,0 +1,820 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-09T08:17:16.580Z",
+  "title": "Design System: Ticket Hygiene",
+  "extensions": {
+    "colorMeta": {
+      "ok": {
+        "role": "primary",
+        "displayName": "Live Teal",
+        "canonical": "#3dd6c3",
+        "tonalRamp": [
+          "oklch(15% 0.128 182.8)",
+          "oklch(26.4% 0.128 182.8)",
+          "oklch(37.9% 0.128 182.8)",
+          "oklch(49.3% 0.128 182.8)",
+          "oklch(60.7% 0.128 182.8)",
+          "oklch(72.1% 0.128 182.8)",
+          "oklch(83.6% 0.128 182.8)",
+          "oklch(95% 0.128 182.8)"
+        ]
+      },
+      "wait": {
+        "role": "secondary",
+        "displayName": "Sodium Amber",
+        "canonical": "#f2a541",
+        "tonalRamp": [
+          "oklch(15% 0.144 69.4)",
+          "oklch(26.4% 0.144 69.4)",
+          "oklch(37.9% 0.144 69.4)",
+          "oklch(49.3% 0.144 69.4)",
+          "oklch(60.7% 0.144 69.4)",
+          "oklch(72.1% 0.144 69.4)",
+          "oklch(83.6% 0.144 69.4)",
+          "oklch(95% 0.144 69.4)"
+        ]
+      },
+      "alert": {
+        "role": "tertiary",
+        "displayName": "Tail-Light Red",
+        "canonical": "#ff4d5e",
+        "tonalRamp": [
+          "oklch(15% 0.16 19.8)",
+          "oklch(26.4% 0.16 19.8)",
+          "oklch(37.9% 0.16 19.8)",
+          "oklch(49.3% 0.16 19.8)",
+          "oklch(60.7% 0.16 19.8)",
+          "oklch(72.1% 0.16 19.8)",
+          "oklch(83.6% 0.16 19.8)",
+          "oklch(95% 0.16 19.8)"
+        ]
+      },
+      "alert-ink": {
+        "role": "tertiary",
+        "displayName": "Tail-Light Ink",
+        "canonical": "#ff8a95",
+        "tonalRamp": [
+          "oklch(15% 0.142 15.1)",
+          "oklch(26.4% 0.142 15.1)",
+          "oklch(37.9% 0.142 15.1)",
+          "oklch(49.3% 0.142 15.1)",
+          "oklch(60.7% 0.142 15.1)",
+          "oklch(72.1% 0.142 15.1)",
+          "oklch(83.6% 0.142 15.1)",
+          "oklch(95% 0.142 15.1)"
+        ]
+      },
+      "on-alert": {
+        "role": "tertiary",
+        "displayName": "On Red",
+        "canonical": "#1a0508",
+        "tonalRamp": [
+          "oklch(15% 0.039 12.1)",
+          "oklch(26.4% 0.039 12.1)",
+          "oklch(37.9% 0.039 12.1)",
+          "oklch(49.3% 0.039 12.1)",
+          "oklch(60.7% 0.039 12.1)",
+          "oklch(72.1% 0.039 12.1)",
+          "oklch(83.6% 0.039 12.1)",
+          "oklch(95% 0.039 12.1)"
+        ]
+      },
+      "on-ok": {
+        "role": "primary",
+        "displayName": "On Teal",
+        "canonical": "#04201c",
+        "tonalRamp": [
+          "oklch(15% 0.035 182.1)",
+          "oklch(26.4% 0.035 182.1)",
+          "oklch(37.9% 0.035 182.1)",
+          "oklch(49.3% 0.035 182.1)",
+          "oklch(60.7% 0.035 182.1)",
+          "oklch(72.1% 0.035 182.1)",
+          "oklch(83.6% 0.035 182.1)",
+          "oklch(95% 0.035 182.1)"
+        ]
+      },
+      "clean": {
+        "role": "neutral",
+        "displayName": "Headlight",
+        "canonical": "#eaf0ff",
+        "tonalRamp": [
+          "oklch(15% 0.021 268.4)",
+          "oklch(26.4% 0.021 268.4)",
+          "oklch(37.9% 0.021 268.4)",
+          "oklch(49.3% 0.021 268.4)",
+          "oklch(60.7% 0.021 268.4)",
+          "oklch(72.1% 0.021 268.4)",
+          "oklch(83.6% 0.021 268.4)",
+          "oklch(95% 0.021 268.4)"
+        ]
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Night Ground",
+        "canonical": "#0b1020",
+        "tonalRamp": [
+          "oklch(15% 0.034 269.6)",
+          "oklch(26.4% 0.034 269.6)",
+          "oklch(37.9% 0.034 269.6)",
+          "oklch(49.3% 0.034 269.6)",
+          "oklch(60.7% 0.034 269.6)",
+          "oklch(72.1% 0.034 269.6)",
+          "oklch(83.6% 0.034 269.6)",
+          "oklch(95% 0.034 269.6)"
+        ]
+      },
+      "ground-deep": {
+        "role": "neutral",
+        "displayName": "Night Ground, deep",
+        "canonical": "#070b17",
+        "tonalRamp": [
+          "oklch(15% 0.027 268.1)",
+          "oklch(26.4% 0.027 268.1)",
+          "oklch(37.9% 0.027 268.1)",
+          "oklch(49.3% 0.027 268.1)",
+          "oklch(60.7% 0.027 268.1)",
+          "oklch(72.1% 0.027 268.1)",
+          "oklch(83.6% 0.027 268.1)",
+          "oklch(95% 0.027 268.1)"
+        ]
+      },
+      "glass": {
+        "role": "neutral",
+        "displayName": "Frosted Glass",
+        "canonical": "rgba(26, 34, 54, 0.44)",
+        "tonalRamp": [
+          "oklch(15% 0.04 266.9)",
+          "oklch(26.4% 0.04 266.9)",
+          "oklch(37.9% 0.04 266.9)",
+          "oklch(49.3% 0.04 266.9)",
+          "oklch(60.7% 0.04 266.9)",
+          "oklch(72.1% 0.04 266.9)",
+          "oklch(83.6% 0.04 266.9)",
+          "oklch(95% 0.04 266.9)"
+        ]
+      },
+      "glass-strong": {
+        "role": "neutral",
+        "displayName": "Frosted Glass, strong",
+        "canonical": "rgba(28, 37, 60, 0.72)",
+        "tonalRamp": [
+          "oklch(15% 0.045 267.1)",
+          "oklch(26.4% 0.045 267.1)",
+          "oklch(37.9% 0.045 267.1)",
+          "oklch(49.3% 0.045 267.1)",
+          "oklch(60.7% 0.045 267.1)",
+          "oklch(72.1% 0.045 267.1)",
+          "oklch(83.6% 0.045 267.1)",
+          "oklch(95% 0.045 267.1)"
+        ]
+      },
+      "glass-hover": {
+        "role": "neutral",
+        "displayName": "Frosted Glass, hover",
+        "canonical": "rgba(40, 51, 80, 0.5)",
+        "tonalRamp": [
+          "oklch(15% 0.054 267.6)",
+          "oklch(26.4% 0.054 267.6)",
+          "oklch(37.9% 0.054 267.6)",
+          "oklch(49.3% 0.054 267.6)",
+          "oklch(60.7% 0.054 267.6)",
+          "oklch(72.1% 0.054 267.6)",
+          "oklch(83.6% 0.054 267.6)",
+          "oklch(95% 0.054 267.6)"
+        ]
+      },
+      "edge": {
+        "role": "neutral",
+        "displayName": "Hairline Edge",
+        "canonical": "rgba(234, 240, 255, 0.09)",
+        "tonalRamp": [
+          "oklch(15% 0.021 268.4)",
+          "oklch(26.4% 0.021 268.4)",
+          "oklch(37.9% 0.021 268.4)",
+          "oklch(49.3% 0.021 268.4)",
+          "oklch(60.7% 0.021 268.4)",
+          "oklch(72.1% 0.021 268.4)",
+          "oklch(83.6% 0.021 268.4)",
+          "oklch(95% 0.021 268.4)"
+        ]
+      },
+      "edge-strong": {
+        "role": "neutral",
+        "displayName": "Hairline Edge, strong",
+        "canonical": "rgba(234, 240, 255, 0.18)",
+        "tonalRamp": [
+          "oklch(15% 0.021 268.4)",
+          "oklch(26.4% 0.021 268.4)",
+          "oklch(37.9% 0.021 268.4)",
+          "oklch(49.3% 0.021 268.4)",
+          "oklch(60.7% 0.021 268.4)",
+          "oklch(72.1% 0.021 268.4)",
+          "oklch(83.6% 0.021 268.4)",
+          "oklch(95% 0.021 268.4)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#eaf0ff",
+        "tonalRamp": [
+          "oklch(15% 0.021 268.4)",
+          "oklch(26.4% 0.021 268.4)",
+          "oklch(37.9% 0.021 268.4)",
+          "oklch(49.3% 0.021 268.4)",
+          "oklch(60.7% 0.021 268.4)",
+          "oklch(72.1% 0.021 268.4)",
+          "oklch(83.6% 0.021 268.4)",
+          "oklch(95% 0.021 268.4)"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink 2",
+        "canonical": "#c9d2ea",
+        "tonalRamp": [
+          "oklch(15% 0.035 269.3)",
+          "oklch(26.4% 0.035 269.3)",
+          "oklch(37.9% 0.035 269.3)",
+          "oklch(49.3% 0.035 269.3)",
+          "oklch(60.7% 0.035 269.3)",
+          "oklch(72.1% 0.035 269.3)",
+          "oklch(83.6% 0.035 269.3)",
+          "oklch(95% 0.035 269.3)"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Ink 3",
+        "canonical": "#9aa6c4",
+        "tonalRamp": [
+          "oklch(15% 0.046 268.1)",
+          "oklch(26.4% 0.046 268.1)",
+          "oklch(37.9% 0.046 268.1)",
+          "oklch(49.3% 0.046 268.1)",
+          "oklch(60.7% 0.046 268.1)",
+          "oklch(72.1% 0.046 268.1)",
+          "oklch(83.6% 0.046 268.1)",
+          "oklch(95% 0.046 268.1)"
+        ]
+      },
+      "ink-4": {
+        "role": "neutral",
+        "displayName": "Ink 4",
+        "canonical": "#7d89ab",
+        "tonalRamp": [
+          "oklch(15% 0.053 269.7)",
+          "oklch(26.4% 0.053 269.7)",
+          "oklch(37.9% 0.053 269.7)",
+          "oklch(49.3% 0.053 269.7)",
+          "oklch(60.7% 0.053 269.7)",
+          "oklch(72.1% 0.053 269.7)",
+          "oklch(83.6% 0.053 269.7)",
+          "oklch(95% 0.053 269.7)"
+        ]
+      },
+      "ok-day": {
+        "role": "primary",
+        "displayName": "Live Teal (day)",
+        "canonical": "#0c9484",
+        "tonalRamp": [
+          "oklch(15% 0.106 181.5)",
+          "oklch(26.4% 0.106 181.5)",
+          "oklch(37.9% 0.106 181.5)",
+          "oklch(49.3% 0.106 181.5)",
+          "oklch(60.7% 0.106 181.5)",
+          "oklch(72.1% 0.106 181.5)",
+          "oklch(83.6% 0.106 181.5)",
+          "oklch(95% 0.106 181.5)"
+        ]
+      },
+      "wait-day": {
+        "role": "secondary",
+        "displayName": "Sodium Amber (day)",
+        "canonical": "#b86e06",
+        "tonalRamp": [
+          "oklch(15% 0.135 64.8)",
+          "oklch(26.4% 0.135 64.8)",
+          "oklch(37.9% 0.135 64.8)",
+          "oklch(49.3% 0.135 64.8)",
+          "oklch(60.7% 0.135 64.8)",
+          "oklch(72.1% 0.135 64.8)",
+          "oklch(83.6% 0.135 64.8)",
+          "oklch(95% 0.135 64.8)"
+        ]
+      },
+      "alert-day": {
+        "role": "tertiary",
+        "displayName": "Tail-Light Red (day)",
+        "canonical": "#e0253a",
+        "tonalRamp": [
+          "oklch(15% 0.16 22.5)",
+          "oklch(26.4% 0.16 22.5)",
+          "oklch(37.9% 0.16 22.5)",
+          "oklch(49.3% 0.16 22.5)",
+          "oklch(60.7% 0.16 22.5)",
+          "oklch(72.1% 0.16 22.5)",
+          "oklch(83.6% 0.16 22.5)",
+          "oklch(95% 0.16 22.5)"
+        ]
+      },
+      "alert-ink-day": {
+        "role": "tertiary",
+        "displayName": "Tail-Light Ink (day)",
+        "canonical": "#c41d31",
+        "tonalRamp": [
+          "oklch(15% 0.16 22.4)",
+          "oklch(26.4% 0.16 22.4)",
+          "oklch(37.9% 0.16 22.4)",
+          "oklch(49.3% 0.16 22.4)",
+          "oklch(60.7% 0.16 22.4)",
+          "oklch(72.1% 0.16 22.4)",
+          "oklch(83.6% 0.16 22.4)",
+          "oklch(95% 0.16 22.4)"
+        ]
+      },
+      "on-alert-day": {
+        "role": "tertiary",
+        "displayName": "On Red (day)",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0 89.9)",
+          "oklch(26.4% 0 89.9)",
+          "oklch(37.9% 0 89.9)",
+          "oklch(49.3% 0 89.9)",
+          "oklch(60.7% 0 89.9)",
+          "oklch(72.1% 0 89.9)",
+          "oklch(83.6% 0 89.9)",
+          "oklch(95% 0 89.9)"
+        ]
+      },
+      "clean-day": {
+        "role": "neutral",
+        "displayName": "Headlight (day, slate)",
+        "canonical": "#6a7899",
+        "tonalRamp": [
+          "oklch(15% 0.054 266.8)",
+          "oklch(26.4% 0.054 266.8)",
+          "oklch(37.9% 0.054 266.8)",
+          "oklch(49.3% 0.054 266.8)",
+          "oklch(60.7% 0.054 266.8)",
+          "oklch(72.1% 0.054 266.8)",
+          "oklch(83.6% 0.054 266.8)",
+          "oklch(95% 0.054 266.8)"
+        ]
+      },
+      "ground-day": {
+        "role": "neutral",
+        "displayName": "Day Haze",
+        "canonical": "#eef1f6",
+        "tonalRamp": [
+          "oklch(15% 0.007 260.7)",
+          "oklch(26.4% 0.007 260.7)",
+          "oklch(37.9% 0.007 260.7)",
+          "oklch(49.3% 0.007 260.7)",
+          "oklch(60.7% 0.007 260.7)",
+          "oklch(72.1% 0.007 260.7)",
+          "oklch(83.6% 0.007 260.7)",
+          "oklch(95% 0.007 260.7)"
+        ]
+      },
+      "ground-deep-day": {
+        "role": "neutral",
+        "displayName": "Day Haze, deep",
+        "canonical": "#e2e7f0",
+        "tonalRamp": [
+          "oklch(15% 0.013 262.4)",
+          "oklch(26.4% 0.013 262.4)",
+          "oklch(37.9% 0.013 262.4)",
+          "oklch(49.3% 0.013 262.4)",
+          "oklch(60.7% 0.013 262.4)",
+          "oklch(72.1% 0.013 262.4)",
+          "oklch(83.6% 0.013 262.4)",
+          "oklch(95% 0.013 262.4)"
+        ]
+      },
+      "glass-day": {
+        "role": "neutral",
+        "displayName": "Frosted Glass (day)",
+        "canonical": "rgba(255, 255, 255, 0.56)",
+        "tonalRamp": [
+          "oklch(15% 0 89.9)",
+          "oklch(26.4% 0 89.9)",
+          "oklch(37.9% 0 89.9)",
+          "oklch(49.3% 0 89.9)",
+          "oklch(60.7% 0 89.9)",
+          "oklch(72.1% 0 89.9)",
+          "oklch(83.6% 0 89.9)",
+          "oklch(95% 0 89.9)"
+        ]
+      },
+      "glass-strong-day": {
+        "role": "neutral",
+        "displayName": "Frosted Glass, strong (day)",
+        "canonical": "rgba(255, 255, 255, 0.82)",
+        "tonalRamp": [
+          "oklch(15% 0 89.9)",
+          "oklch(26.4% 0 89.9)",
+          "oklch(37.9% 0 89.9)",
+          "oklch(49.3% 0 89.9)",
+          "oklch(60.7% 0 89.9)",
+          "oklch(72.1% 0 89.9)",
+          "oklch(83.6% 0 89.9)",
+          "oklch(95% 0 89.9)"
+        ]
+      },
+      "glass-hover-day": {
+        "role": "neutral",
+        "displayName": "Frosted Glass, hover (day)",
+        "canonical": "rgba(255, 255, 255, 0.75)",
+        "tonalRamp": [
+          "oklch(15% 0 89.9)",
+          "oklch(26.4% 0 89.9)",
+          "oklch(37.9% 0 89.9)",
+          "oklch(49.3% 0 89.9)",
+          "oklch(60.7% 0 89.9)",
+          "oklch(72.1% 0 89.9)",
+          "oklch(83.6% 0 89.9)",
+          "oklch(95% 0 89.9)"
+        ]
+      },
+      "edge-day": {
+        "role": "neutral",
+        "displayName": "Hairline Edge (day)",
+        "canonical": "rgba(18, 24, 38, 0.09)",
+        "tonalRamp": [
+          "oklch(15% 0.029 266.1)",
+          "oklch(26.4% 0.029 266.1)",
+          "oklch(37.9% 0.029 266.1)",
+          "oklch(49.3% 0.029 266.1)",
+          "oklch(60.7% 0.029 266.1)",
+          "oklch(72.1% 0.029 266.1)",
+          "oklch(83.6% 0.029 266.1)",
+          "oklch(95% 0.029 266.1)"
+        ]
+      },
+      "edge-strong-day": {
+        "role": "neutral",
+        "displayName": "Hairline Edge, strong (day)",
+        "canonical": "rgba(18, 24, 38, 0.18)",
+        "tonalRamp": [
+          "oklch(15% 0.029 266.1)",
+          "oklch(26.4% 0.029 266.1)",
+          "oklch(37.9% 0.029 266.1)",
+          "oklch(49.3% 0.029 266.1)",
+          "oklch(60.7% 0.029 266.1)",
+          "oklch(72.1% 0.029 266.1)",
+          "oklch(83.6% 0.029 266.1)",
+          "oklch(95% 0.029 266.1)"
+        ]
+      },
+      "ink-day": {
+        "role": "neutral",
+        "displayName": "Ink (day)",
+        "canonical": "#121826",
+        "tonalRamp": [
+          "oklch(15% 0.029 266.1)",
+          "oklch(26.4% 0.029 266.1)",
+          "oklch(37.9% 0.029 266.1)",
+          "oklch(49.3% 0.029 266.1)",
+          "oklch(60.7% 0.029 266.1)",
+          "oklch(72.1% 0.029 266.1)",
+          "oklch(83.6% 0.029 266.1)",
+          "oklch(95% 0.029 266.1)"
+        ]
+      },
+      "ink-2-day": {
+        "role": "neutral",
+        "displayName": "Ink 2 (day)",
+        "canonical": "#2b3550",
+        "tonalRamp": [
+          "oklch(15% 0.05 268.1)",
+          "oklch(26.4% 0.05 268.1)",
+          "oklch(37.9% 0.05 268.1)",
+          "oklch(49.3% 0.05 268.1)",
+          "oklch(60.7% 0.05 268.1)",
+          "oklch(72.1% 0.05 268.1)",
+          "oklch(83.6% 0.05 268.1)",
+          "oklch(95% 0.05 268.1)"
+        ]
+      },
+      "ink-3-day": {
+        "role": "neutral",
+        "displayName": "Ink 3 (day)",
+        "canonical": "#46536f",
+        "tonalRamp": [
+          "oklch(15% 0.049 265.1)",
+          "oklch(26.4% 0.049 265.1)",
+          "oklch(37.9% 0.049 265.1)",
+          "oklch(49.3% 0.049 265.1)",
+          "oklch(60.7% 0.049 265.1)",
+          "oklch(72.1% 0.049 265.1)",
+          "oklch(83.6% 0.049 265.1)",
+          "oklch(95% 0.049 265.1)"
+        ]
+      },
+      "ink-4-day": {
+        "role": "neutral",
+        "displayName": "Ink 4 (day)",
+        "canonical": "#5a6684",
+        "tonalRamp": [
+          "oklch(15% 0.05 267.7)",
+          "oklch(26.4% 0.05 267.7)",
+          "oklch(37.9% 0.05 267.7)",
+          "oklch(49.3% 0.05 267.7)",
+          "oklch(60.7% 0.05 267.7)",
+          "oklch(72.1% 0.05 267.7)",
+          "oklch(83.6% 0.05 267.7)",
+          "oklch(95% 0.05 267.7)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The single health status word in the notifier pane; one per screen at most."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page heads and the alert-detail title; 24px on the sign-in card."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Product name in the 64px header."
+      },
+      "title-pane": {
+        "displayName": "Pane Title",
+        "purpose": "Pane and feed heads; 15px for the verdict box head."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default text, inputs, quoted replies; reasons at 15px, 72ch measure."
+      },
+      "body-sm": {
+        "displayName": "Body Small",
+        "purpose": "Rows, chips, controls, table cells, captions."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Meta, table heads, fact labels; ink-3 or ink-4, sentence case."
+      },
+      "label-rail": {
+        "displayName": "Rail Label",
+        "purpose": "Rail item labels and river lane labels."
+      },
+      "data": {
+        "displayName": "Data (Mono)",
+        "purpose": "Times, IDs, ticket numbers, axis ticks, scores, key hints. Never prose."
+      }
+    },
+    "themes": {
+      "selector": ":root[data-theme=\"dark\"] (default) and :root[data-theme=\"light\"]",
+      "note": "Both themes define the same custom-property names; frontmatter keys ending in -day are the light-theme values of the same property. on-ok (#04201c) is the same in both.",
+      "glowFactor": {
+        "dark": 1,
+        "light": 0.55
+      },
+      "lightCore": {
+        "value": "#121826",
+        "theme": "light",
+        "purpose": "1.5px inset ring at 55% that gives river lights an edge against the pale day ground."
+      }
+    },
+    "blur": [
+      {
+        "name": "pane",
+        "value": "blur(26px) saturate(140%)",
+        "purpose": "Glass panes."
+      },
+      {
+        "name": "rail",
+        "value": "blur(22px)",
+        "purpose": "Navigation rail."
+      },
+      {
+        "name": "float",
+        "value": "blur(20px)",
+        "purpose": "Tooltips and the sticky feed head, over glass-strong."
+      },
+      {
+        "name": "header",
+        "value": "blur(18px)",
+        "purpose": "Header over the ground at 55%."
+      }
+    ],
+    "shadows": [
+      {
+        "name": "pane-lift-night",
+        "value": "0 24px 48px -24px rgba(0, 0, 0, 0.7)",
+        "purpose": "Glass panes and tooltips, dark theme."
+      },
+      {
+        "name": "pane-lift-day",
+        "value": "0 24px 48px -28px rgba(30, 40, 70, 0.35)",
+        "purpose": "Glass panes and tooltips, light theme."
+      },
+      {
+        "name": "light-halo",
+        "value": "0 0 calc(10px * var(--glow)) var(--c)",
+        "purpose": "Glow on live dots, pips and timeline markers in their signal colour."
+      },
+      {
+        "name": "score-marker",
+        "value": "0 0 0 5px color-mix(in srgb, var(--ink) 18%, transparent), 0 0 18px var(--ink)",
+        "purpose": "Probability marker on the score bar."
+      },
+      {
+        "name": "focus-ring",
+        "value": "outline: 2px solid var(--ok); outline-offset: 2px; border-radius: 8px",
+        "purpose": "Global focus-visible ring."
+      }
+    ],
+    "motion": [
+      {
+        "name": "drift",
+        "value": "left 5s linear",
+        "purpose": "Lights, trails, streaks and field bokeh slide between 5s re-renders."
+      },
+      {
+        "name": "ease-settle",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Arrival of new lights (1.6s), new feed rows (1.2s), the theme knob (0.35s)."
+      },
+      {
+        "name": "hover",
+        "value": "0.2s ease",
+        "purpose": "Background and colour on rows, rail items and buttons; 0.15s for button press."
+      },
+      {
+        "name": "sharpen",
+        "value": "0.35s ease",
+        "purpose": "Light hover: blur, opacity and scale."
+      },
+      {
+        "name": "breathe",
+        "value": "2.8s ease-in-out infinite",
+        "purpose": "The live dot's glow."
+      },
+      {
+        "name": "shimmer",
+        "value": "1.6s linear infinite",
+        "purpose": "Loading skeletons."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Drift, arrival, breathe and shimmer all stop."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact",
+        "value": "1180px",
+        "purpose": "Panes to two columns; detail stacks; verdict box un-sticks."
+      },
+      {
+        "name": "mobile",
+        "value": "760px",
+        "purpose": "Rail becomes a 64px bottom bar; 16px gutter; panes stack; feed rows reflow."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ink-filled; the one decisive action on a surface (sign in).",
+      "html": "<button class=\"ds-btn-primary\">Sign in</button>",
+      "css": ".ds-btn-primary { font-family: 'Red Hat Text Variable', system-ui, sans-serif; height: 40px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--edge-strong); background: var(--glass); color: var(--ink); font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease; background: var(--ink); color: var(--ground); border-color: transparent; } .ds-btn-primary:hover { background: color-mix(in srgb, var(--ink) 88%, var(--ok)); } .ds-btn-primary:active { transform: translateY(1px); } .ds-btn-primary:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; }"
+    },
+    {
+      "name": "Glass Button",
+      "kind": "button",
+      "refersTo": "button-glass",
+      "description": "Default button: glass with a strong hairline.",
+      "html": "<button class=\"ds-btn-glass\">Load older alerts</button>",
+      "css": ".ds-btn-glass { font-family: 'Red Hat Text Variable', system-ui, sans-serif; height: 40px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--edge-strong); background: var(--glass); color: var(--ink); font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease; } .ds-btn-glass:hover { background: var(--glass-hover); } .ds-btn-glass:active { transform: translateY(1px); } .ds-btn-glass:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; } .ds-btn-glass:disabled { opacity: 0.5; cursor: not-allowed; }"
+    },
+    {
+      "name": "Verdict Pair",
+      "kind": "button",
+      "refersTo": "button-verdict-correct-pressed",
+      "description": "Correct / False alarm; fills teal or red only once pressed, each with its key hint.",
+      "html": "<div class=\"ds-choice\"><button class=\"ds-vbtn ds-right\" aria-pressed=\"true\">Correct <span class=\"ds-kbd\">C</span></button><button class=\"ds-vbtn ds-alarm\" aria-pressed=\"false\">False alarm <span class=\"ds-kbd\">F</span></button></div>",
+      "css": ".ds-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 360px; } .ds-vbtn { font-family: 'Red Hat Text Variable', system-ui, sans-serif; height: 40px; padding: 0 18px; border-radius: 12px; border: 1px solid var(--edge-strong); background: var(--glass); color: var(--ink); font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.15s ease; justify-content: center; } .ds-vbtn:hover { background: var(--glass-hover); } .ds-vbtn:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; } .ds-right[aria-pressed=\"true\"] { background: var(--ok); color: #04201c; border-color: transparent; } .ds-alarm[aria-pressed=\"true\"] { background: var(--alert); color: var(--on-alert); border-color: transparent; } .ds-kbd { font: 500 11px/1 'Red Hat Mono Variable', monospace; padding: 3px 5px; border-radius: 5px; border: 1px solid var(--edge-strong); color: var(--ink-3); }"
+    },
+    {
+      "name": "Filter Chips",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Half-height glass pills; single-select filter groups.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip\" aria-pressed=\"true\">Decisions</button><button class=\"ds-chip\" aria-pressed=\"false\">Everything <span class=\"ds-n\">212</span></button></div>",
+      "css": ".ds-chips { display: flex; gap: 8px; } .ds-chip { font-family: 'Red Hat Text Variable', system-ui, sans-serif; height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--edge); background: var(--glass); color: var(--ink-3); font-size: 13px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; } .ds-chip:hover { color: var(--ink); border-color: var(--edge-strong); } .ds-chip:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; } .ds-chip[aria-pressed=\"true\"] { color: var(--ink); background: color-mix(in srgb, var(--ink) 12%, transparent); border-color: var(--edge-strong); } .ds-n { color: var(--ink-4); font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Glass field with a teal caret; the border turns teal on focus.",
+      "html": "<label class=\"ds-search\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/></svg><input class=\"ds-input\" placeholder=\"Ticket number or ID\"></label>",
+      "css": ".ds-search { position: relative; display: inline-block; } .ds-search svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-4); } .ds-input { font-family: 'Red Hat Text Variable', system-ui, sans-serif; width: 280px; height: 38px; padding: 10px 14px 10px 38px; border-radius: 12px; border: 1px solid var(--edge); background: var(--glass); color: var(--ink); font-size: 14px; caret-color: var(--ok); } .ds-input::placeholder { color: var(--ink-4); } .ds-input:focus { outline: none; border-color: var(--ok); }"
+    },
+    {
+      "name": "Rail Navigation",
+      "kind": "nav",
+      "refersTo": "rail-item",
+      "description": "76px glass rail; icon over label, current page on ink at 10%, red count on Review.",
+      "html": "<nav class=\"ds-rail\"><a class=\"ds-ri\" aria-current=\"page\" href=\"#\"><svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 12h-4l-3 9L9 3l-3 9H2\"/></svg>Live</a><a class=\"ds-ri\" href=\"#\"><svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 12h-6l-2 3h-4l-2-3H2\"/><path d=\"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z\"/></svg>Review<span class=\"ds-count\">5</span></a></nav>",
+      "css": ".ds-rail { width: 76px; padding: 18px 0; display: flex; flex-direction: column; align-items: center; gap: 6px; background: var(--glass); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); border-right: 1px solid var(--edge); } .ds-ri { font-family: 'Red Hat Text Variable', system-ui, sans-serif; position: relative; width: 60px; padding: 9px 0 7px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--ink-3); font-size: 11px; font-weight: 500; text-decoration: none; transition: background-color 0.2s ease, color 0.2s ease; } .ds-ri:hover { color: var(--ink); background: var(--glass-hover); } .ds-ri:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; } .ds-ri[aria-current=\"page\"] { color: var(--ink); background: color-mix(in srgb, var(--ink) 10%, transparent); } .ds-count { position: absolute; top: 4px; right: 8px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--alert); color: var(--on-alert); font: 600 11px/18px 'Red Hat Text Variable', sans-serif; text-align: center; }"
+    },
+    {
+      "name": "Glass Pane",
+      "kind": "card",
+      "refersTo": "pane",
+      "description": "The base container: frosted glass, hairline edge, 18px corners, soft lift.",
+      "html": "<section class=\"ds-pane\"><div class=\"ds-ph\"><h3>Notifier</h3><span>Polling</span></div><div class=\"ds-hw\">Healthy</div><div class=\"ds-kv\"><span>Last poll</span><time>01:41 PM</time></div></section>",
+      "css": ".ds-pane { font-family: 'Red Hat Text Variable', system-ui, sans-serif; background: var(--glass); -webkit-backdrop-filter: blur(26px) saturate(140%); backdrop-filter: blur(26px) saturate(140%); border: 1px solid var(--edge); border-radius: 18px; box-shadow: var(--shadow); padding: 20px 22px; width: 300px; color: var(--ink); font-size: 14px; } .ds-ph { display: flex; justify-content: space-between; align-items: baseline; } .ds-ph h3 { margin: 0; font-size: 14px; font-weight: 600; } .ds-ph span { color: var(--ink-4); font-size: 12px; } .ds-hw { font-size: 34px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.15; margin: 4px 0 2px; } .ds-kv { display: flex; justify-content: space-between; padding: 10px 0; font-size: 13px; border-top: 1px solid var(--edge); } .ds-kv span { color: var(--ink-3); } .ds-kv time { font-family: 'Red Hat Mono Variable', ui-monospace, monospace; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Alert Row",
+      "kind": "custom",
+      "refersTo": "pane",
+      "description": "Unreviewed alert in a list: glowing red pip, name, two-line reason, mono time.",
+      "html": "<a class=\"ds-arow\" href=\"#\"><span class=\"ds-pip\"></span><span><b>Arjya Dutta</b><span class=\"ds-why\">Pending, no question: no question or request for the customer found in the reply.</span></span><time>01:28 PM</time></a>",
+      "css": ".ds-arow { font-family: 'Red Hat Text Variable', system-ui, sans-serif; display: grid; grid-template-columns: 10px 1fr auto; gap: 12px; align-items: start; padding: 12px 6px; width: 460px; border-radius: 10px; color: var(--ink); text-decoration: none; font-size: 14px; transition: background-color 0.2s ease; } .ds-arow:hover { background: var(--glass-hover); } .ds-arow:focus-visible { outline: 2px solid var(--ok); outline-offset: 2px; } .ds-arow b { font-weight: 500; } .ds-why { display: block; color: var(--ink-3); font-size: 13px; } .ds-pip { width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: var(--alert); box-shadow: 0 0 10px var(--alert); } .ds-arow time { font-family: 'Red Hat Mono Variable', ui-monospace, monospace; font-variant-numeric: tabular-nums; font-size: 12px; color: var(--ink-4); white-space: nowrap; }"
+    },
+    {
+      "name": "River Light",
+      "kind": "custom",
+      "refersTo": "tooltip",
+      "description": "A check as a soft light with its exposure trail, an alert as a red streak; hover or focus sharpens.",
+      "html": "<div class=\"ds-river\"><i class=\"ds-lane\"></i><i class=\"ds-trail\"></i><button class=\"ds-light\" aria-label=\"Check passed\"></button><i class=\"ds-streak\"></i><button class=\"ds-light ds-al\" aria-label=\"Alert\"></button></div>",
+      "css": ".ds-river { position: relative; width: 420px; height: 60px; } .ds-lane { position: absolute; left: 0; right: 0; top: 30px; height: 1px; background: linear-gradient(90deg, transparent, var(--edge) 12%, var(--edge) 88%, transparent); } .ds-light { --c: var(--ok); position: absolute; left: 120px; top: 30px; width: 12px; height: 12px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; transform: translate(-50%, -50%); background: radial-gradient(circle, var(--c) 0, color-mix(in srgb, var(--c) 40%, transparent) 42%, transparent 70%); filter: blur(4.5px); opacity: 0.9; transition: filter 0.35s ease, opacity 0.35s ease, transform 0.35s ease; } .ds-light:hover, .ds-light:focus-visible { filter: blur(0.5px); opacity: 1; transform: translate(-50%, -50%) scale(1.5); outline: none; } .ds-al { --c: var(--alert); left: 330px; width: 20px; height: 20px; filter: blur(3px); } .ds-trail { position: absolute; left: 92px; top: 30px; width: 28px; height: 3px; border-radius: 3px; transform: translateY(-50%); background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ok) 55%, transparent)); filter: blur(1.5px); } .ds-streak { position: absolute; left: 220px; top: 30px; width: 110px; height: 5px; border-radius: 5px; transform: translateY(-50%); background: linear-gradient(90deg, transparent, var(--alert) 72%, color-mix(in srgb, var(--alert) 40%, white)); filter: blur(2px); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Long Exposure",
+    "overview": "Night-shift city light trails seen through frosted glass. The notifier's real traffic (every check, every alert from the last hour) moves behind the interface as light: a passing light per check, a red tail-light streak per alert. The glass exists because something real moves behind it; panes blur a defocused field drawn from the same live data as the river, so the background is never decoration.\n\nThe system is a working monitor, not a showcase. Density is moderate: a 76px rail, a 64px header, a 236px river, then glass panes, lists and tables in 13-14px type. One family, Red Hat Text, carries everything; its mono cut appears only for data. Night (dark) and day haze (light) share every token name; only the values change, and the day theme dims the glow rather than removing it.\n\nColour is spent on state, never on chrome. The interface itself is ink on glass; the only saturated colour on screen is a light that means something.",
+    "keyCharacteristics": [
+      "Frosted glass panes (26px blur, 140% saturate) over a live, defocused field of the notifier's own traffic.",
+      "Four lights carry all meaning: headlight white (clean), teal (ok, live), sodium amber (waiting, uncertain, error), tail-light red (alert).",
+      "One typeface family; mono only for times, IDs, axis ticks, scores and key hints.",
+      "Hairline edges instead of dividers with weight; depth from blur and a single soft drop shadow.",
+      "Motion is the data moving: 5s linear drift, blurred arrival that settles, and nothing animates under reduced motion."
+    ],
+    "rules": [
+      {
+        "name": "The Tail-Light Rule",
+        "body": "In the traffic (river, field, feed, trace, mark) red means an alert and nothing else; errors in the traffic are amber. Outside the traffic, the red family appears only where the associate must act: an unreviewed count, a false-alarm verdict, the notifier down, a failed load.",
+        "section": "colors"
+      },
+      {
+        "name": "The Lights-Are-States Rule",
+        "body": "Saturated colour appears only as a signal light or the text that names it. Chrome, navigation and headings stay ink on glass; the primary button is filled with ink, not with a hue.",
+        "section": "colors"
+      },
+      {
+        "name": "The Shared-Name Rule",
+        "body": "Night and day define the same token names. A new surface uses tokens, never a theme-specific literal, so the switch changes every value at once.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Family Rule",
+        "body": "Red Hat Text and its mono cut only. No second display face.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono-Is-Data Rule",
+        "body": "Mono is set on times, IDs, ticket numbers, axis ticks, scores and key hints, never on prose, labels or headings. Labels stay sentence case; there is no uppercase tracking anywhere in the system.",
+        "section": "typography"
+      },
+      {
+        "name": "The Something-Behind-The-Glass Rule",
+        "body": "Glass is only used over the live field. If a surface has nothing moving behind it, it does not need more blur; the field supplies the reason for the material.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Blur Ladder Rule",
+        "body": "Panes blur 26px (with 140% saturate), the rail 22px, tooltips and the sticky feed head 20px, the header 18px over a 55% ground wash.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do colour every light with the outcome mapping: clean for a quiet check, ok for a passed one, wait for skipped, uncertain or errored, alert for alerts only.",
+      "Do put every raised surface on glass (glass, 1px edge, 18px radius for panes) over the live field.",
+      "Do set times, IDs and numbers in Red Hat Mono with tabular numerals, and everything else in Red Hat Text.",
+      "Do scale every glow by the theme's glow factor (1 at night, 0.55 by day) so day haze stays calm.",
+      "Do guard every animation with prefers-reduced-motion; the river and field stop drifting, arrivals and shimmer stop.",
+      "Do keep the primary action an ink-filled button, not a coloured one."
+    ],
+    "donts": [
+      "Don't use red in the traffic for anything but an alert; errors in the traffic are amber.",
+      "Don't place lights that don't stand for real traffic. The gate's still field is the one stand-in, because there is no data before sign-in.",
+      "Don't add a second typeface or set prose, labels or headings in mono.",
+      "Don't use opaque cards, heavy borders or hard shadows; depth is blur plus the one soft pane lift.",
+      "Don't write a theme-specific colour literal into a component; define the token in both themes."
+    ]
+  }
+}

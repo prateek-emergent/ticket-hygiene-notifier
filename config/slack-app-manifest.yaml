@@ -1,0 +1,22 @@
+# Paste this at https://api.slack.com/apps -> Create New App -> From a manifest.
+# Only the bot scopes the notifier needs: post messages, look up people by email to @mention them,
+# and send direct messages (rule 4 reminds engineers to fix their Trinity status).
+display_information:
+  name: Ticket Hygiene Bot
+  description: Flags Trinity ticket-hygiene issues (pending, reassignment, Overwatch pickups) to team associates.
+  background_color: "#2c2d30"
+features:
+  bot_user:
+    display_name: Ticket Hygiene Bot
+    always_online: true
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - users:read
+      - users:read.email
+      - im:write
+settings:
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

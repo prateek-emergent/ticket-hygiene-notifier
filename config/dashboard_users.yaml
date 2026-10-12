@@ -1,0 +1,15 @@
+# Who may sign in to the dashboard with Google. One email per line; changes apply without a restart.
+# Associates open on their own team (from config/teams.yaml); everyone else opens on "All teams".
+allowed:
+  # associates
+  - hridaya@emergent.sh
+  - subrahmanya@emergent.sh
+  - shreyas.g@emergent.sh
+  - sutikshan@emergent.sh
+  - nikhita@emergent.sh
+  - prateek.m@emergent.sh
+  # seniors
+  - udayagiri@emergent.sh
+  - vinish@emergent.sh
+  - soham@emergent.sh
+  - vibhor@emergent.sh

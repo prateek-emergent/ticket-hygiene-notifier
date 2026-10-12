@@ -1,0 +1,83 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Long Exposure</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;height:900px;overflow:hidden;background:#0B1020;color:#EAF0FF;font:14px/1.45 Geist,system-ui,sans-serif;position:relative}
+.mono{font-family:"Geist Mono",monospace}
+.field{position:absolute;inset:0;overflow:hidden}
+.l{position:absolute;border-radius:50%;filter:blur(7px);opacity:.75}
+.w{background:radial-gradient(circle,#EAF0FF 0,#EAF0FF55 40%,transparent 70%)}
+.t{background:radial-gradient(circle,#3DD6C3 0,#3DD6C355 40%,transparent 70%)}
+.a{background:radial-gradient(circle,#F2A541 0,#F2A54155 40%,transparent 70%)}
+.s{position:absolute;height:6px;border-radius:6px;filter:blur(2.5px);background:linear-gradient(90deg,transparent,#FF4D5E 70%,#FFB3BA)}
+.rail{position:absolute;left:0;top:0;bottom:0;width:76px;background:rgba(18,24,42,.55);backdrop-filter:blur(22px);border-right:1px solid rgba(234,240,255,.08);display:flex;flex-direction:column;align-items:center;gap:26px;padding-top:22px}
+.logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#EAF0FF,#3DD6C3);opacity:.9}
+.nav{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#9AA6C4;font-size:11px}
+.nav.on{background:rgba(234,240,255,.1);color:#EAF0FF}
+header{position:absolute;left:76px;right:0;top:0;height:64px;display:flex;align-items:center;gap:18px;padding:0 32px}
+h1{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.sel{padding:7px 12px;border-radius:9px;background:rgba(234,240,255,.07);border:1px solid rgba(234,240,255,.1);color:#C9D2EA}
+.sp{flex:1}
+.live{display:flex;align-items:center;gap:8px;color:#9AA6C4}.dot{width:8px;height:8px;border-radius:50%;background:#3DD6C3;box-shadow:0 0 10px #3DD6C3}
+.toggle{width:52px;height:28px;border-radius:14px;background:rgba(234,240,255,.1);position:relative}.toggle:after{content:"";position:absolute;right:4px;top:4px;width:20px;height:20px;border-radius:50%;background:#EAF0FF}
+.river{position:absolute;left:76px;right:0;top:64px;height:236px;border-bottom:1px solid rgba(234,240,255,.06)}
+.axis{position:absolute;left:32px;right:32px;bottom:14px;display:flex;justify-content:space-between;color:#5F6B8A;font-size:11px}
+.cap{position:absolute;left:32px;top:14px;color:#9AA6C4;font-size:12px}
+.cap b{color:#EAF0FF;font-weight:500}
+.grid{position:absolute;left:108px;right:32px;top:324px;bottom:28px;display:grid;grid-template-columns:1.25fr 1fr .8fr;gap:20px}
+.pane{background:rgba(26,34,54,.42);backdrop-filter:blur(26px) saturate(140%);border:1px solid rgba(234,240,255,.09);border-radius:18px;padding:20px 22px;overflow:hidden}
+.ph{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.ph h2{font-size:13px;font-weight:500;color:#C9D2EA}.ph span{color:#5F6B8A;font-size:12px}
+.row{display:grid;grid-template-columns:8px 1fr auto;gap:12px;align-items:start;padding:12px 0;border-top:1px solid rgba(234,240,255,.06)}
+.pip{width:8px;height:8px;border-radius:50%;background:#FF4D5E;margin-top:6px;box-shadow:0 0 8px #FF4D5E}
+.who{font-weight:500}.why{color:#9AA6C4;font-size:13px}.when{color:#5F6B8A;font-size:12px}
+.rule{display:grid;grid-template-columns:1fr 70px 34px;gap:10px;align-items:center;padding:10px 0;border-top:1px solid rgba(234,240,255,.06);font-size:13px;color:#C9D2EA}
+.spark{height:18px;display:flex;align-items:flex-end;gap:2px}.spark i{flex:1;background:#5F6B8A;border-radius:1px}.spark i.r{background:#FF4D5E}
+.n{text-align:right;font-weight:600}
+.kv{display:flex;justify-content:space-between;padding:10px 0;border-top:1px solid rgba(234,240,255,.06);font-size:13px}.kv span:first-child{color:#9AA6C4}
+.big{font-size:40px;font-weight:600;letter-spacing:-.03em;margin:4px 0 2px}
+</style></head><body>
+<div class="field">
+  <!-- bokeh behind everything: each light is a check in the last hour -->
+  <div class="l w" style="left:180px;top:120px;width:22px;height:22px"></div><div class="l w" style="left:262px;top:180px;width:16px;height:16px"></div>
+  <div class="l t" style="left:340px;top:150px;width:26px;height:26px"></div><div class="l w" style="left:430px;top:110px;width:14px;height:14px"></div>
+  <div class="l a" style="left:520px;top:196px;width:24px;height:24px"></div><div class="l w" style="left:610px;top:140px;width:18px;height:18px"></div>
+  <div class="l t" style="left:700px;top:176px;width:20px;height:20px"></div><div class="l w" style="left:790px;top:126px;width:24px;height:24px"></div>
+  <div class="l w" style="left:880px;top:200px;width:14px;height:14px"></div><div class="l t" style="left:960px;top:138px;width:22px;height:22px"></div>
+  <div class="l w" style="left:1050px;top:168px;width:18px;height:18px"></div><div class="l a" style="left:1150px;top:118px;width:20px;height:20px"></div>
+  <div class="l w" style="left:1240px;top:190px;width:24px;height:24px"></div><div class="l t" style="left:1330px;top:150px;width:16px;height:16px"></div>
+  <div class="s" style="left:560px;top:142px;width:150px"></div><div class="s" style="left:1010px;top:206px;width:120px"></div><div class="s" style="left:1260px;top:124px;width:90px"></div>
+  <div class="l w" style="left:300px;top:520px;width:60px;height:60px;opacity:.25"></div><div class="l t" style="left:820px;top:640px;width:80px;height:80px;opacity:.22"></div>
+  <div class="l a" style="left:1200px;top:480px;width:70px;height:70px;opacity:.2"></div><div class="s" style="left:600px;top:760px;width:260px;opacity:.35"></div>
+</div>
+<nav class="rail"><div class="logo"></div><div class="nav on">Live</div><div class="nav">Alerts</div><div class="nav">Team</div><div class="nav">Tickets</div><div class="nav">System</div></nav>
+<header><h1>Ticket Hygiene</h1><div class="sel">Prateek Maithil's team ▾</div><div class="sel">Last 24 h ▾</div><div class="sp"></div>
+<div class="live"><span class="dot"></span>Live · last cycle 12 s ago</div><div class="toggle" title="Dark / light"></div></header>
+<section class="river">
+  <div class="cap"><b>Last hour</b> · 41 checks · <span style="color:#FF4D5E">3 alerts</span> · 1 uncertain</div>
+  <div class="axis mono"><span>09:15</span><span>09:30</span><span>09:45</span><span>10:00</span><span>now 10:14</span></div>
+</section>
+<main class="grid">
+  <div class="pane"><div class="ph"><h2>Your team, unreviewed</h2><span>4 · press J for next</span></div>
+    <div class="row"><i class="pip"></i><div><div class="who">Govind · <span class="mono">#273283</span></div><div class="why">Moved to Pending, reply asks the customer nothing. von 12%</div></div><div class="when mono">10:02</div></div>
+    <div class="row"><i class="pip"></i><div><div class="who">Akshayaa · <span class="mono">#273301</span></div><div class="why">Took the ticket from Renuka (held 3 h 10 min)</div></div><div class="when mono">09:48</div></div>
+    <div class="row"><i class="pip"></i><div><div class="who">Govind · <span class="mono">#273250</span></div><div class="why">Self-assigned while Overwatch was running; System closed it</div></div><div class="when mono">09:31</div></div>
+    <div class="row"><i class="pip"></i><div><div class="who">Zeel · <span class="mono">—</span></div><div class="why">Still Offline 45 min after shift start (6A–3P)</div></div><div class="when mono">06:45</div></div>
+  </div>
+  <div class="pane"><div class="ph"><h2>Rules, last 24 h</h2><span>alerts</span></div>
+    <div class="rule">Pending with no open question<div class="spark"><i style="height:30%"></i><i style="height:60%"></i><i class="r" style="height:90%"></i><i style="height:40%"></i><i style="height:70%"></i></div><div class="n">9</div></div>
+    <div class="rule">Taken from a colleague<div class="spark"><i style="height:20%"></i><i style="height:50%"></i><i style="height:30%"></i><i class="r" style="height:80%"></i><i style="height:20%"></i></div><div class="n">5</div></div>
+    <div class="rule">Grabbed during Overwatch<div class="spark"><i style="height:10%"></i><i style="height:30%"></i><i style="height:20%"></i><i style="height:40%"></i><i class="r" style="height:60%"></i></div><div class="n">2</div></div>
+    <div class="rule">Status vs shift<div class="spark"><i style="height:50%"></i><i style="height:20%"></i><i style="height:10%"></i><i style="height:30%"></i><i style="height:20%"></i></div><div class="n">3</div></div>
+    <div class="rule">Held while off shift<div class="spark"><i style="height:10%"></i><i style="height:10%"></i><i style="height:20%"></i><i style="height:10%"></i><i style="height:10%"></i></div><div class="n">1</div></div>
+  </div>
+  <div class="pane"><div class="ph"><h2>Notifier</h2><span class="mono">run · dry run</span></div>
+    <div class="big">Healthy</div><div class="why" style="margin-bottom:10px">Polling Trinity every 60 s</div>
+    <div class="kv"><span>Rule 1 model</span><span>A · von + decider:4b</span></div>
+    <div class="kv"><span>Median model time</span><span class="mono">0.9 s</span></div>
+    <div class="kv"><span>Checks waiting</span><span class="mono">6</span></div>
+    <div class="kv"><span>Errors, 24 h</span><span class="mono">0</span></div>
+  </div>
+</main>
+</body></html>
