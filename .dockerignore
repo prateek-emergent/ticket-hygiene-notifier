@@ -22,3 +22,6 @@ dashboard/web/
 !pip-cache/
 # ...but still keep generated/vendored junk out of the (now re-included) frontend/.
 frontend/node_modules/
+# The platform adds its supervisor config to the build context (etc/supervisor/conf.d/supervisord.conf);
+# the image entrypoint reads it to start the backend. Hiding it makes the container exit on start.
+!etc/
