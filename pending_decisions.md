@@ -28,12 +28,13 @@ When a decision is made, move it to "Decided" with the date and the choice.
 | D14 | KB contradictions between Notion and practice | Open | Support lead |
 | D15 | Theme 6b: what to notify | Open (6b on) | User |
 | D16 | Secrets found in ticket notes and replies | Open, needs action | Security / support lead |
-| D17 | Rotate the API keys shared in chat | Open, needs action | User |
-| D18 | Data-handling sign-off for sending ticket text to Jev and Claude | Open; **blocks go-live** | User / security owner |
+| D17 | Rotate the API keys shared in chat | **Decided 2026-10-14**: not rotated; risk accepted by the user (see Decided) | n/a |
+| D18 | Data-handling sign-off for sending ticket text to Jev and Claude | **Decided 2026-10-14**: approved by the user (see Decided) | n/a |
 | D19 | Alert when the notifier itself stops | **Decided 2026-10-12**: watchdog DMs the owner only (see Decided) | n/a |
-| D20 | Go-live plan: dry-run review period and telling engineers the themes | Open | User / associates |
+| D20 | Go-live plan: dry-run review period and telling engineers the themes | **Decided 2026-10-14**: dry-run trial until the Slack bot is approved (see Decided) | n/a |
 | D21 | Owner and refresh cadence for the escalation KB | Open | User / support lead |
 | D22 | Trinity unreachable from the deployed app on 12 Oct: confirm the root cause with infra | Open (resolved itself; cause not confirmed) | Infra |
+| D23 | Slack bot approval, then connecting it | Open, waiting on Slack approval | User / Slack admin |
 
 ---
 
@@ -229,29 +230,6 @@ Customer secrets were pasted in plain text:
 - Who handles these as security incidents, and whether the affected credentials are rotated.
 - Whether the notifier should flag secrets in notes and replies, as a possible new theme.
 
-### D17. Rotate the API keys shared in chat
-*Raised 2026-10-08.*
-
-The Trinity MCP key and the Jev (LiteLLM) key were pasted into the Claude chat while setting things up. Both now live only in `.env`, which is git-ignored, but they should be rotated, and `.env` updated, before go-live.
-
-### D18. Data-handling sign-off for sending ticket text to Jev and Claude
-*Raised 2026-10-09, in the gap review.*
-
-**What leaves the machine today, or would once switched on:**
-
-| Theme | Sends | To | Status |
-|---|---|---|---|
-| Theme 6b | The escalating engineer's internal notes, which often contain customer emails, app names and error text | Jev (Emergent's LiteLLM); Claude if a key is added | **on** |
-| Theme 6a | The escalated ticket's conversation (last 8 messages) and the escalation note | Jev; Claude as fallback | off |
-| Theme 1 (option B) | Engineers' replies to customers | Jev | **on since 2026-10-12** |
-| Theme 1 Claude fallback | Uncertain replies | Claude | off |
-
-Only theme 1 had a sign-off question until now (D9).
-
-**To decide:** whether sending this text to Jev (and Claude) is acceptable, under what terms (retention, region), and who signs off. Theme 6b is on, so this applies now, although nothing is posted while `DRY_RUN=true`.
-
-**Option if sign-off is refused:** themes 6a and 6b can run on the local `decider:4b` model in Ollaya instead. This would need re-measuring with `scripts/eval_kb.py`, and is slower.
-
 ### D19. Alert when the notifier itself stops
 *Raised 2026-10-09, in the gap review.*
 
@@ -260,28 +238,6 @@ If the notifier stops, the dashboard shows "Not running", but nobody is notified
 **Option:** a small watchdog (or a check in the dashboard server) that DMs the owner in Slack when the heartbeat is older than 10 minutes, and again when it recovers.
 
 **Decided 2026-10-12:** built as `python -m notifier watchdog`, DM to the user only (see Decided).
-
-### D20. Go-live plan: dry-run review period, and telling engineers the themes
-*Raised 2026-10-09, in the gap review.*
-
-**Situation.** No theme has yet been measured against human judgement on real tickets:
-- theme 1 was tested on hand-written cases and a replay spot check;
-- themes 2–5 rest on their logic and a partly reviewed backtest;
-- theme 6 were tested against AI-made labels;
-- themes 4–5 started with the roster on 9 Oct.
-
-Backtests suggest about 100 alerts a day from themes 1–3, plus about 8–9 from theme 6b.
-
-**Proposal.**
-1. **One to two weeks of dry run,** with the deployed dashboard. Associates mark every alert correct or false alarm.
-2. **Measure each theme** from those verdicts. Settle alert volume and grouping (D2), theme 6a (D13) and theme 6b notifications (D15) from that data.
-3. **Before alerts go to Slack,** publish to engineers:
-   - what each theme flags;
-   - the escalation-note template in `kb/escalation/reference/rca-standard.md`;
-   - that associates review every alert.
-4. **Switch to `DRY_RUN=false`** theme by theme, starting with the most accurate.
-
-**To decide:** the length of the review period, who reviews, and the order in which themes go live.
 
 ### D21. Owner and refresh cadence for the escalation KB
 *Raised 2026-10-09, in the gap review.*
@@ -333,6 +289,15 @@ The steps are in `kb/escalation/README.md`.
 - The startup network check (`backend/server.py`, `network_check`) logs one line per dependency on every deploy.
 - The down-alert watchdog DMs the owner when every cycle has failed for 10 minutes; this needs `SLACK_BOT_TOKEN`.
 
+### D23. Slack bot approval, then connecting it
+*Raised 2026-10-14. Kept as a reminder: the app runs as a dry-run trial until this is done.*
+
+The Slack app (`config/slack-app-manifest.yaml`) is waiting for approval. Once approved:
+1. Add `SLACK_BOT_TOKEN` (and `SLACK_CHANNEL` if not `#ticket-hygiene`) in the deployed app's environment settings, and redeploy (about 1 min).
+2. Invite the bot to the channel: `/invite @<bot name>`.
+3. Run `python scripts/check_slack.py --post-test`: it checks the token, posts one test message, and confirms associates' emails match Slack accounts.
+4. From then on the down-alert DM reaches the owner, even while `DRY_RUN=true`.
+
 ---
 
 ## Decided
@@ -364,3 +329,6 @@ The steps are in `kb/escalation/README.md`.
 | 2026-10-12 | D12 | **Container built** (`Dockerfile`, `docker/start.sh`, `docker-compose.yml`): notifier + dashboard + watchdog in one container, `state.db` in a `/data` volume, secrets from the environment. The image holds no customer data or secrets (`.dockerignore`). Tests pass on Python 3.13, the image's version. |
 | 2026-10-12 | D12 | **Deploy on the Emergent platform as an internal app**: code pushed to a private GitHub repo, imported into an Emergent job and deployed from there. SQLite goes up as is; the Emergent agent moves storage to the app's MongoDB following `EMERGENT_DEPLOY.md`. Duplicate protection is built in first: an alert is claimed atomically (`alert_claims`) before it is posted, tested with two notifier copies racing on one database. The repo commits the roster, team list and dashboard access list (staff data only); chat exports stay out (they hold keys). Platform must run exactly one copy and never park it. |
 | 2026-10-12 | D12 | **Deployed** as internal app `alert-dedupe-mongo` (one pod, MongoDB, `DRY_RUN=true`), reachable on the VPN at `https://alert-dedupe-mongo.internal.aws.emergent.host`. Dashboard works. **Was blocked on network (resolved by 14 Oct; root cause in D22):** the app runs on the AWS internal cluster (10.241.x), which cannot reach Trinity (`trinity-base.internal.emergent.host`, 10.99.32.123) or Jev's LiteLLM (172.28.0.7); every poll cycle times out. Needs the platform team: open those routes, or host the app where they are reachable. The public URL `alert-dedupe-mongo.emergent.host` answers "Deployment not found" (deploy screen stuck at "reconcile domain"). |
+| 2026-10-14 | D18 | **Data handling approved by the user:** ticket text (engineers' replies, escalation notes and, once theme 6a is on, escalated conversations) may be sent to Jev through Emergent's LiteLLM, and to Claude if `ANTHROPIC_API_KEY` is added. |
+| 2026-10-14 | D17 | **The Trinity and Jev keys are not rotated;** the user accepts the risk of their having been pasted in chat. They live only in the pod's `.env` files and the app's environment settings (git-ignored). |
+| 2026-10-14 | D20 | **Dry-run trial until the Slack bot is approved (D23).** Associates review would-be alerts in the deployed dashboard meanwhile. Announcing the themes to engineers and switching to `DRY_RUN=false` are left to the user. |
