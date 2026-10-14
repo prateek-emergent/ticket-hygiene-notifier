@@ -33,6 +33,7 @@ When a decision is made, move it to "Decided" with the date and the choice.
 | D19 | Alert when the notifier itself stops | **Decided 2026-10-12**: watchdog DMs the owner only (see Decided) | n/a |
 | D20 | Go-live plan: dry-run review period and telling engineers the themes | Open | User / associates |
 | D21 | Owner and refresh cadence for the escalation KB | Open | User / support lead |
+| D22 | Trinity unreachable from the deployed app on 12 Oct: confirm the root cause with infra | Open (resolved itself; cause not confirmed) | Infra |
 
 ---
 
@@ -299,6 +300,39 @@ The steps are in `kb/escalation/README.md`.
 
 **To decide:** who owns it, and how often it is refreshed.
 
+### D22. Trinity unreachable from the deployed app on 12 Oct (RCA)
+*Raised 2026-10-14. Resolved by itself; the cause is not confirmed.*
+
+**What happened.** On 12 Oct the deployed app (`alert-dedupe-mongo`, AWS `internal-deployment-cluster`) could not connect to Trinity: every call ended in `ConnectTimeout`. On 14 Oct the same app reached Trinity normally, without any change on our side.
+
+**Timeline (UTC).**
+
+| When | Where it ran | Result |
+|---|---|---|
+| 12 Oct 12:04–12:21 | Our deployed app, pod on node `i-0e02843d2d5727a16` (us-west-2b) | Every Trinity call: `ConnectTimeout` |
+| 12 Oct ~12:07 | Our preview pod, same code and keys | Reached Trinity, scanned 21 tickets |
+| 12 Oct 12:32 | `shift-guardian-2` (another team's app, same cluster) | `Trinity presence failed`, `ConnectTimeout` |
+| 12 Oct 13:07 | Our app redeployed, again on `i-0e02843d2d5727a16`; notifier paused | No evidence either way |
+| 13 Oct 13:20 | `shift-guardian-2` restarted on `i-01dd4f34d467e98a8` (us-west-2a) | Its Trinity calls answer `200 OK` (seen on 14 Oct) |
+| 14 Oct 07:21 | Our app on `i-01dd4f34d467e98a8` (2a) | Startup network check: Trinity reached in 46 ms |
+| 14 Oct 08:27–08:44 | Our app in zones 2a, 2b and 2d | All reach Trinity (44–344 ms) |
+
+**Ruled out.**
+- *Our code or keys:* the same code and keys reached Trinity from the preview pod on 12 Oct, and a timeout happens before any key is checked (a bad key gives 401/403).
+- *Trinity down:* the preview pod and a laptop on the VPN reached it while the deployed apps could not.
+- *Trinity's address changed:* `10.99.32.123` on both days.
+- *DNS or a proxy:* the cluster DNS (`172.20.0.10`) answered; no proxy is configured.
+- *One app's problem:* two unrelated apps failed the same way at the same time.
+- *A whole availability zone:* on 14 Oct a copy in us-west-2b (the zone that failed on 12 Oct) reaches Trinity.
+
+**Most likely cause (not proven).** The network path from the AWS internal cluster to Trinity's network (`10.99.32.0/24`) was down or misconfigured, and was restored between 12 Oct ~13:07 and 13 Oct 13:20 UTC at the latest. That would be a route, a firewall rule, or the link or tunnel between the networks. Not fully excluded: a fault on node `i-0e02843d2d5727a16`, where both of our failing pods ran. It would only explain `shift-guardian-2`'s failures if that app's pod was on the same node, which can no longer be checked.
+
+**To confirm, ask infra:** "Between 12 Oct 12:00 and 13 Oct 13:20 UTC, was there any change or outage on the route from `internal-deployment-cluster` (pods `100.80.0.0/16`) to `10.99.32.0/24`, for example a VPN or transit-gateway tunnel down, a route-table change, or a security-group or firewall change? And was node `i-0e02843d2d5727a16` drained or replaced in that window?"
+
+**Already in place for next time.**
+- The startup network check (`backend/server.py`, `network_check`) logs one line per dependency on every deploy.
+- The down-alert watchdog DMs the owner when every cycle has failed for 10 minutes; this needs `SLACK_BOT_TOKEN`.
+
 ---
 
 ## Decided
@@ -329,4 +363,4 @@ The steps are in `kb/escalation/README.md`.
 | 2026-10-12 | D19 | **Down alert:** a watchdog process sends a Slack DM to the user only (`DOWN_ALERT["dm"]` in `config.py`), never the channel, when the notifier has no heartbeat for 10 min or every cycle has failed for 10 min, with a reminder every 60 min and a DM on recovery. It works during `DRY_RUN=true` and when the notifier can't start. |
 | 2026-10-12 | D12 | **Container built** (`Dockerfile`, `docker/start.sh`, `docker-compose.yml`): notifier + dashboard + watchdog in one container, `state.db` in a `/data` volume, secrets from the environment. The image holds no customer data or secrets (`.dockerignore`). Tests pass on Python 3.13, the image's version. |
 | 2026-10-12 | D12 | **Deploy on the Emergent platform as an internal app**: code pushed to a private GitHub repo, imported into an Emergent job and deployed from there. SQLite goes up as is; the Emergent agent moves storage to the app's MongoDB following `EMERGENT_DEPLOY.md`. Duplicate protection is built in first: an alert is claimed atomically (`alert_claims`) before it is posted, tested with two notifier copies racing on one database. The repo commits the roster, team list and dashboard access list (staff data only); chat exports stay out (they hold keys). Platform must run exactly one copy and never park it. |
-| 2026-10-12 | D12 | **Deployed** as internal app `alert-dedupe-mongo` (one pod, MongoDB, `DRY_RUN=true`), reachable on the VPN at `https://alert-dedupe-mongo.internal.aws.emergent.host`. Dashboard works. **Blocked on network:** the app runs on the AWS internal cluster (10.241.x), which cannot reach Trinity (`trinity-base.internal.emergent.host`, 10.99.32.123) or Jev's LiteLLM (172.28.0.7); every poll cycle times out. Needs the platform team: open those routes, or host the app where they are reachable. The public URL `alert-dedupe-mongo.emergent.host` answers "Deployment not found" (deploy screen stuck at "reconcile domain"). |
+| 2026-10-12 | D12 | **Deployed** as internal app `alert-dedupe-mongo` (one pod, MongoDB, `DRY_RUN=true`), reachable on the VPN at `https://alert-dedupe-mongo.internal.aws.emergent.host`. Dashboard works. **Was blocked on network (resolved by 14 Oct; root cause in D22):** the app runs on the AWS internal cluster (10.241.x), which cannot reach Trinity (`trinity-base.internal.emergent.host`, 10.99.32.123) or Jev's LiteLLM (172.28.0.7); every poll cycle times out. Needs the platform team: open those routes, or host the app where they are reachable. The public URL `alert-dedupe-mongo.emergent.host` answers "Deployment not found" (deploy screen stuck at "reconcile domain"). |
