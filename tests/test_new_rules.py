@@ -131,6 +131,19 @@ def test_still_online_45_min_after_shift_end_alerts(tmp_path):
     assert "set yourself Offline" in dm_text
 
 
+def test_shift_boundaries_missed_while_paused_are_skipped_not_judged_by_todays_status(tmp_path):
+    """Regression (14 Oct): after a pause, every missed shift start/end was judged by the engineer's status at
+    restart, so one person got two "Online, expected Offline" alerts in the same minute (two shift ends)."""
+    monitor, notifier, checks = shift_monitor(
+        tmp_path, [f"{KRISHNA},Wed,09:00,18:00", f"{KRISHNA},Thu,09:00,18:00"], {Rule.STATUS_SHIFT})
+    trinity = ShiftTrinity(presence={KRISHNA: "ONLINE"})
+    asyncio.run(checks.run(trinity, SHIFT_START))  # Wed 09:00 IST: running
+    # paused; restarts Thu 18:50 IST, off shift and still Online. Missed: Wed 18:00 end (check due Wed 18:45)
+    # and Thu 18:00 end (check due Thu 18:45, 5 min ago). Only the latter can be judged from status now.
+    asyncio.run(checks.run(trinity, SHIFT_END + timedelta(days=1, minutes=50)))
+    assert len(notifier.posts) == 1
+
+
 def test_unlisted_engineer_status_is_not_checked(tmp_path):
     monitor, notifier, checks = shift_monitor(tmp_path, ["someone.else@emergent.sh,Wed,09:00,18:00"], {Rule.STATUS_SHIFT})
     trinity = ShiftTrinity(presence={"someone.else@emergent.sh": "OFFLINE"})

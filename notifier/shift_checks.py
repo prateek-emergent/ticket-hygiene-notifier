@@ -25,6 +25,11 @@ from .shifts import ShiftCalendar
 from .slack import build_status_messages
 from .trinity import Trinity
 
+# Theme 4 judges a shift boundary by the engineer's status *now*, so it can only judge boundaries whose check
+# time has just passed. After a gap (notifier paused, down, redeploying) older boundaries are skipped: today's
+# status says nothing about whether someone was online at a shift change two days ago.
+STATUS_MAX_CATCHUP = timedelta(minutes=10)
+
 log = logging.getLogger(__name__)
 
 
@@ -102,6 +107,14 @@ class ShiftChecks:
         store, after = self.monitor.store, self.cfg.status_after
         stored = store.get("status_checked_until")
         checked_until = datetime.fromisoformat(stored) if stored else now
+        if now - checked_until > STATUS_MAX_CATCHUP:
+            skipped = sum(1 for _ in cal.boundaries(checked_until - after, now - STATUS_MAX_CATCHUP - after))
+            log.warning("status checks: not running since %s; skipping %d missed shift starts/ends (status now "
+                        "can't tell status then)", checked_until.isoformat(timespec="minutes"), skipped)
+            self.monitor.trace("status", f"Skipped {skipped} shift starts/ends missed while the notifier was not "
+                               f"running (since {checked_until.isoformat(timespec='minutes')})",
+                               rule=Rule.STATUS_SHIFT.value, outcome="skipped")
+            checked_until = now - STATUS_MAX_CATCHUP
         # Boundaries whose check time (boundary + 45 min) fell in (checked_until, now].
         for email, kind, shift in cal.boundaries(checked_until - after, now - after):
             if not self.monitor.directory.is_monitored(email):
