@@ -245,6 +245,10 @@ docker run -d --name ticket-hygiene --env-file .env -v ticket-hygiene-data:/data
 
 `RUN_NOTIFIER` is the master switch. Set it to `false` in the deploy settings (`backend/.env` in the job's pod, which the platform reads at deploy time) and redeploy: the notifier and the watchdog stop, so nothing calls Trinity, Jev or Slack, and the dashboard stays up. Set it back to `true` and redeploy to resume. `DRY_RUN` only holds back Slack posts; the checks keep running.
 
+### Starting fresh (clearing trial data)
+
+Set **both** in the app's environment settings and redeploy: `RESET_TRIAL=true` (the safety catch) and `RESET_TRIAL_DATA=<label>`, e.g. `2026-11-01`. On startup the copy holding the notifier lease clears alerts, reviews, the activity trace and in-flight checks, once per label, after copying them to `<name>_bak_<label>` in the same database. Ticket progress is kept, so old events don't come back as alerts. With only one of the two set, nothing is cleared and the log says why. Afterwards set `RESET_TRIAL=false`.
+
 ### Down alert
 
 `python -m notifier watchdog` (started by the container) sends a Slack **DM to one person**, `DOWN_ALERT["dm"]` in `config.py`, never the channel:

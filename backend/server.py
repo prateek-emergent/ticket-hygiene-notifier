@@ -105,11 +105,19 @@ async def run_watchdog() -> None:
 
 
 def reset_trial_data_once(store) -> None:
-    """RESET_TRIAL_DATA=<label> (e.g. a date) in the environment: clear the trial alerts, reviews, activity and
-    checks once for that label, keeping a backup copy (<name>_bak_<label>) in the same database. Runs in the copy
-    holding the notifier lease, before the notifier starts; a later start with the same label does nothing."""
+    """Clear the trial alerts, reviews, activity and checks once, keeping a backup copy (<name>_bak_<label>) in the
+    same database. Needs both settings, as a safety catch:
+      RESET_TRIAL=true          the switch: without it nothing is ever cleared;
+      RESET_TRIAL_DATA=<label>  which reset (e.g. a date): each label runs at most once.
+    Runs in the copy holding the notifier lease, before the notifier starts."""
     label = os.getenv("RESET_TRIAL_DATA", "").strip()
+    armed = os.getenv("RESET_TRIAL", "").strip().lower() in {"1", "true", "yes", "on"}
     if not label:
+        if armed:
+            log.warning("RESET_TRIAL=true but RESET_TRIAL_DATA (the reset's label) is not set: nothing cleared")
+        return
+    if not armed:
+        log.warning("RESET_TRIAL_DATA=%r is set but RESET_TRIAL is not true: nothing cleared (safety catch)", label)
         return
     try:
         counts = store.reset_trial_data(label)

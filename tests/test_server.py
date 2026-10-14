@@ -102,3 +102,21 @@ def test_two_copies_run_one_notifier_and_the_standby_takes_over(server, monkeypa
         return first, second
 
     assert asyncio.run(scenario()) == (1, 1)  # one notifier at a time, and one again after the takeover
+
+
+def test_trial_reset_needs_both_the_switch_and_the_label(server, monkeypatch, tmp_path):
+    from notifier.store import Store
+    store = Store(tmp_path / "s.db")
+    store.record_alert("r", "k", "", "x@emergent.sh", {})
+    monkeypatch.setenv("RESET_TRIAL_DATA", "2026-11-01")
+    for switch in ("", "false", "no"):  # label alone: the safety catch holds
+        monkeypatch.setenv("RESET_TRIAL", switch)
+        server.reset_trial_data_once(store)
+        assert store.count_alerts("r") == 1
+    monkeypatch.delenv("RESET_TRIAL_DATA")
+    monkeypatch.setenv("RESET_TRIAL", "true")  # switch alone: no label, nothing cleared
+    server.reset_trial_data_once(store)
+    assert store.count_alerts("r") == 1
+    monkeypatch.setenv("RESET_TRIAL_DATA", "2026-11-01")  # both: cleared once
+    server.reset_trial_data_once(store)
+    assert store.count_alerts("r") == 0
