@@ -1,7 +1,14 @@
 """Every read and write the dashboard makes, in one place (the storage boundary).
 
-The notifier writes state.db (notifier/store.py); the dashboard reads it and adds its own two tables:
-feedback on alerts, and sign-in sessions. Moving to another database later means replacing this module.
+The notifier writes the state (notifier/store.py); the dashboard reads it and adds its own two tables:
+feedback on alerts, and sign-in sessions.
+
+Two backends share one interface (same method names, same return shapes), chosen by the environment:
+- SQLite (default): opens the notifier's state.db. Used for local runs and the tests.
+- MongoDB (when MONGO_URL is set): the deployed app's database.
+
+`Data(state_db, teams, names)` returns whichever backend is configured. The row-shaping helpers (_alert_row,
+_activity_row) are shared, so both backends return byte-for-byte the same JSON to the UI.
 """
 
 from __future__ import annotations
@@ -13,6 +20,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from notifier.detectors import RULE_TITLES, Rule
+from notifier.mongo import ensure_indexes, get_db, mongo_enabled, next_id
 from notifier.store import open_db
 
 DASHBOARD_SCHEMA = """
@@ -58,12 +66,24 @@ def _json(text: str | None):
         return None
 
 
-class Data:
-    def __init__(self, db_path: str | Path, teams: list[dict], names: dict[str, str]):
-        self.db = open_db(db_path)
-        self.db.row_factory = sqlite3.Row
-        self.db.executescript(DASHBOARD_SCHEMA)
-        self.db.commit()
+def _pct(values: list[int], q: float) -> int | None:
+    if not values:
+        return None
+    s = sorted(values)
+    return s[min(len(s) - 1, int(q * (len(s) - 1) + 0.5))]
+
+
+def Data(db_path: str | Path, teams: list[dict], names: dict[str, str]):
+    """The configured data store: MongoDB when MONGO_URL is set, otherwise the SQLite state.db."""
+    if mongo_enabled():
+        return MongoData(teams, names)
+    return SqliteData(db_path, teams, names)
+
+
+class _BaseData:
+    """People lookups and row shaping, shared by both backends. Subclasses supply the storage."""
+
+    def __init__(self, teams: list[dict], names: dict[str, str]):
         self.teams = teams  # [{"name", "associates": [...], "engineers": [...]}]
         self.names = {k.lower(): v for k, v in names.items()}
         self.team_of = {e.lower(): t["name"] for t in teams for e in t["engineers"]}
@@ -96,6 +116,51 @@ class Data:
             ],
             "rules": [{"id": r, "title": RULE_TITLES[Rule(r)]} for r in RULE_ORDER],
         }
+
+    # --- row shaping (both backends feed these the same field names) --------------------------
+
+    def _alert_row(self, r, fb: dict) -> dict:
+        key = (r["rule"], r["trigger_event_id"])
+        review = fb.get(key)
+        return {
+            "id": r["rowid"],
+            "rule": r["rule"],
+            "rule_title": RULE_TITLES[Rule(r["rule"])],
+            "ticket_id": r["ticket_id"] or None,
+            "ticket_num": r["ticket_num"],
+            "subject": r["subject"],
+            "engineer": r["engineer"],
+            # The team sheet's spelling wins over the display name Trinity recorded.
+            "engineer_name": self.names.get((r["engineer"] or "").lower()) or r["engineer_name"]
+            or self.name(r["engineer"]),
+            "team": self.team_of.get((r["engineer"] or "").lower()),
+            "associates": _json(r["associates"]) or [],
+            "reason": r["reason"],
+            "url": r["url"],
+            "dry_run": None if r["dry_run"] is None else bool(r["dry_run"]),
+            "sent_at": r["sent_at"],
+            "review": {"verdict": review["verdict"], "by": review["by_email"], "by_name": self.name(review["by_email"]),
+                       "at": review["at"], "note": review["note"]} if review else None,
+        }
+
+    def _activity_row(self, r, nums: dict[str, int] | None = None) -> dict:
+        return {
+            "id": r["id"], "at": r["at"], "kind": r["kind"], "rule": r["rule"],
+            "trigger_event_id": r["trigger_event_id"], "ticket_id": r["ticket_id"],
+            "ticket_num": r["ticket_num"] or (nums or {}).get(r["ticket_id"]),
+            "engineer": r["engineer"], "engineer_name": self.name(r["engineer"]),
+            "team": self.team_of.get((r["engineer"] or "").lower()),
+            "outcome": r["outcome"], "summary": r["summary"], "data": _json(r["data"]),
+        }
+
+
+class SqliteData(_BaseData):
+    def __init__(self, db_path: str | Path, teams: list[dict], names: dict[str, str]):
+        super().__init__(teams, names)
+        self.db = open_db(db_path)
+        self.db.row_factory = sqlite3.Row
+        self.db.executescript(DASHBOARD_SCHEMA)
+        self.db.commit()
 
     # --- notifier status ----------------------------------------------------------------------
 
@@ -194,12 +259,6 @@ class Data:
             if d.get("latency_ms") is not None:
                 latency[d.get("model") or "?"].append(d["latency_ms"])
 
-        def pct(values: list[int], q: float) -> int | None:
-            if not values:
-                return None
-            s = sorted(values)
-            return s[min(len(s) - 1, int(q * (len(s) - 1) + 0.5))]
-
         top = Counter(a["engineer"] for a in alerts).most_common(6)
         return {
             "hours": hours,
@@ -216,7 +275,7 @@ class Data:
             "models": {
                 "calls": len(models),
                 "outcomes": dict(model_outcomes),
-                "latency": [{"model": k, "calls": len(v), "p50_ms": pct(v, 0.5), "p95_ms": pct(v, 0.95)}
+                "latency": [{"model": k, "calls": len(v), "p50_ms": _pct(v, 0.5), "p95_ms": _pct(v, 0.95)}
                             for k, v in sorted(latency.items())],
             },
             "top_engineers": [{"email": e, "name": self.name(e), "team": self.team_of.get(e.lower()), "alerts": c}
@@ -230,30 +289,6 @@ class Data:
         for r in self.db.execute("SELECT * FROM feedback ORDER BY id"):
             out[(r["rule"], r["trigger_event_id"])] = dict(r)
         return out
-
-    def _alert_row(self, r: sqlite3.Row, fb: dict) -> dict:
-        key = (r["rule"], r["trigger_event_id"])
-        review = fb.get(key)
-        return {
-            "id": r["rowid"],
-            "rule": r["rule"],
-            "rule_title": RULE_TITLES[Rule(r["rule"])],
-            "ticket_id": r["ticket_id"] or None,
-            "ticket_num": r["ticket_num"],
-            "subject": r["subject"],
-            "engineer": r["engineer"],
-            # The team sheet's spelling wins over the display name Trinity recorded.
-            "engineer_name": self.names.get((r["engineer"] or "").lower()) or r["engineer_name"]
-            or self.name(r["engineer"]),
-            "team": self.team_of.get((r["engineer"] or "").lower()),
-            "associates": _json(r["associates"]) or [],
-            "reason": r["reason"],
-            "url": r["url"],
-            "dry_run": None if r["dry_run"] is None else bool(r["dry_run"]),
-            "sent_at": r["sent_at"],
-            "review": {"verdict": review["verdict"], "by": review["by_email"], "by_name": self.name(review["by_email"]),
-                       "at": review["at"], "note": review["note"]} if review else None,
-        }
 
     def alerts(self, *, rule: str | None = None, team: str | None = None, engineer: str | None = None,
                review: str | None = None, q: str | None = None, hours: float | None = None,
@@ -334,16 +369,6 @@ class Data:
             "UNION ALL SELECT ticket_id, MAX(ticket_num) FROM alerts WHERE ticket_num IS NOT NULL GROUP BY ticket_id")}
         self._nums_cache = (_now(), nums)
         return nums
-
-    def _activity_row(self, r: sqlite3.Row, nums: dict[str, int] | None = None) -> dict:
-        return {
-            "id": r["id"], "at": r["at"], "kind": r["kind"], "rule": r["rule"],
-            "trigger_event_id": r["trigger_event_id"], "ticket_id": r["ticket_id"],
-            "ticket_num": r["ticket_num"] or (nums or {}).get(r["ticket_id"]),
-            "engineer": r["engineer"], "engineer_name": self.name(r["engineer"]),
-            "team": self.team_of.get((r["engineer"] or "").lower()),
-            "outcome": r["outcome"], "summary": r["summary"], "data": _json(r["data"]),
-        }
 
     def activity_rows(self, sql: str, args: tuple) -> list[dict]:
         nums = self._ticket_nums()
@@ -456,3 +481,329 @@ class Data:
     def end_session(self, token_hash: str) -> None:
         self.db.execute("DELETE FROM dashboard_sessions WHERE token_hash=?", (token_hash,))
         self.db.commit()
+
+
+class MongoData(_BaseData):
+    """MongoDB-backed Data. Reads what MongoStore writes and keeps its own feedback and sessions collections.
+
+    Every method returns exactly what SqliteData returns: the shared _alert_row / _activity_row helpers are fed
+    dicts with the same field names (alerts carry a `rowid` = the integer `id`), so the UI sees no difference.
+    """
+
+    def __init__(self, teams: list[dict], names: dict[str, str], db=None):
+        super().__init__(teams, names)
+        self.db = db if db is not None else get_db()
+        ensure_indexes(self.db)
+
+    # --- notifier status ----------------------------------------------------------------------
+
+    def kv(self, key: str) -> str | None:
+        doc = self.db.kv.find_one({"key": key})
+        return doc["value"] if doc else None
+
+    def _last(self, kind: str) -> dict | None:
+        doc = self.db.activity.find_one({"kind": kind}, sort=[("id", -1)], projection={"_id": 0, "at": 1, "summary": 1})
+        return {"at": doc["at"], "summary": doc["summary"]} if doc else None
+
+    def status(self) -> dict:
+        beat = self.kv("heartbeat")
+        live = bool(beat) and _now() - datetime.fromisoformat(beat) < LIVE_WITHIN
+        return {
+            "live": live,
+            "heartbeat": beat,
+            "info": _json(self.kv("notifier_info")),
+            "last_error": self._last("error"),
+            "last_cycle": self._last("cycle"),
+            "checks_waiting": self.db.checks.count_documents({"done": 0}),
+            "last_activity_id": self.last_activity_id(),
+        }
+
+    def last_activity_id(self) -> int:
+        doc = self.db.activity.find_one(sort=[("id", -1)], projection={"id": 1})
+        return doc["id"] if doc else 0
+
+    # --- overview -----------------------------------------------------------------------------
+
+    def overview(self, hours: float, team: str | None) -> dict:
+        since = _iso(_now() - timedelta(hours=hours))
+        members = self.team_members(team)
+
+        def mine(engineer: str | None) -> bool:
+            return members is None or (engineer or "").lower() in members
+
+        alerts = [r for r in self.db.alerts.find({"sent_at": {"$gte": since}}, {"_id": 0}) if mine(r["engineer"])]
+        act = list(self.db.activity.find({"at": {"$gte": since}}, {"_id": 0}))
+        checks = [r for r in act if r["kind"] == "check" and mine(r["engineer"])]
+        models = [r for r in act if r["kind"] == "model" and mine(r["engineer"])]
+        status_checks = [r for r in act if r["kind"] == "status" and mine(r["engineer"])]
+
+        fb = self._latest_feedback()
+        reviewed = Counter(fb[(a["rule"], a["trigger_event_id"])]["verdict"]
+                           for a in alerts if (a["rule"], a["trigger_event_id"]) in fb)
+
+        step = timedelta(hours=1 if hours <= 48 else 24)
+        start = _now() - timedelta(hours=hours)
+        n = int(timedelta(hours=hours) / step) + 1
+        buckets = [{"t": _iso(start + i * step), "alerts": 0, "checks": 0} for i in range(n)]
+
+        def bucket(at: str) -> int:
+            return min(n - 1, max(0, int((datetime.fromisoformat(at) - start) / step)))
+
+        for a in alerts:
+            buckets[bucket(a["sent_at"])]["alerts"] += 1
+        for r in checks:
+            buckets[bucket(r["at"])]["checks"] += 1
+
+        per_rule = []
+        alert_by_rule = Counter(a["rule"] for a in alerts)
+        check_by_rule = defaultdict(Counter)
+        for c in checks:
+            check_by_rule[c["rule"]][c["outcome"]] += 1
+        for s in status_checks:
+            check_by_rule[Rule.STATUS_SHIFT.value]["ok" if s["outcome"] == "ok" else s["outcome"]] += 1
+
+        h12 = _now() - timedelta(hours=12)
+        hourly = {r: {"checks": [0] * 12, "alerts": [0] * 12} for r in RULE_ORDER}
+
+        def hour(at: str) -> int:
+            return min(11, max(0, int((datetime.fromisoformat(at) - h12) / timedelta(hours=1))))
+
+        for r in self.db.activity.find(
+                {"kind": {"$in": ["check", "status"]}, "rule": {"$ne": None}, "at": {"$gte": _iso(h12)}}, {"_id": 0}):
+            if r["rule"] in hourly and mine(r["engineer"]):
+                hourly[r["rule"]]["checks"][hour(r["at"])] += 1
+        for r in self.db.alerts.find({"sent_at": {"$gte": _iso(h12)}}, {"_id": 0}):
+            if r["rule"] in hourly and mine(r["engineer"]):
+                hourly[r["rule"]]["alerts"][hour(r["sent_at"])] += 1
+        for rule in RULE_ORDER:
+            per_rule.append({"rule": rule, "title": RULE_TITLES[Rule(rule)], "alerts": alert_by_rule[rule],
+                             "outcomes": dict(check_by_rule[rule]), "last12h": hourly[rule]})
+
+        latency = defaultdict(list)
+        model_outcomes = Counter()
+        for m in models:
+            d = _json(m["data"]) or {}
+            model_outcomes[m["outcome"]] += 1
+            if d.get("latency_ms") is not None:
+                latency[d.get("model") or "?"].append(d["latency_ms"])
+
+        top = Counter(a["engineer"] for a in alerts).most_common(6)
+        return {
+            "hours": hours,
+            "team": team,
+            "totals": {
+                "alerts": len(alerts),
+                "checks": len(checks) + len(status_checks),
+                "outcomes": dict(Counter(c["outcome"] for c in checks)),
+                "reviewed": dict(reviewed),
+                "unreviewed": len(alerts) - sum(reviewed.values()),
+            },
+            "per_rule": per_rule,
+            "timeline": {"step_hours": step.total_seconds() / 3600, "buckets": buckets},
+            "models": {
+                "calls": len(models),
+                "outcomes": dict(model_outcomes),
+                "latency": [{"model": k, "calls": len(v), "p50_ms": _pct(v, 0.5), "p95_ms": _pct(v, 0.95)}
+                            for k, v in sorted(latency.items())],
+            },
+            "top_engineers": [{"email": e, "name": self.name(e), "team": self.team_of.get(e.lower()), "alerts": c}
+                              for e, c in top],
+        }
+
+    # --- alerts -------------------------------------------------------------------------------
+
+    def _latest_feedback(self) -> dict[tuple[str, str], dict]:
+        out = {}
+        for r in self.db.feedback.find({}, {"_id": 0}).sort("id", 1):
+            out[(r["rule"], r["trigger_event_id"])] = r
+        return out
+
+    @staticmethod
+    def _alert_doc(doc: dict) -> dict:
+        """A Mongo alert document as the row _alert_row expects (its integer id becomes `rowid`)."""
+        return {**doc, "rowid": doc["id"]}
+
+    def alerts(self, *, rule: str | None = None, team: str | None = None, engineer: str | None = None,
+               review: str | None = None, q: str | None = None, hours: float | None = None,
+               limit: int = 100, before_id: int | None = None) -> dict:
+        query: dict = {}
+        if rule:
+            query["rule"] = rule
+        if hours:
+            query["sent_at"] = {"$gte": _iso(_now() - timedelta(hours=hours))}
+        if before_id:
+            query["id"] = {"$lt": before_id}
+        members = self.team_members(team)
+        fb = self._latest_feedback()
+        needle = (q or "").strip().lower().lstrip("#")
+        eng = engineer.lower() if engineer else None
+        items = []
+        for doc in self.db.alerts.find(query, {"_id": 0}).sort([("sent_at", -1), ("id", -1)]):
+            if eng and (doc.get("engineer") or "").lower() != eng:
+                continue
+            if members is not None and (doc.get("engineer") or "").lower() not in members:
+                continue
+            row = self._alert_row(self._alert_doc(doc), fb)
+            if review == "unreviewed" and row["review"]:
+                continue
+            if review in VERDICTS and (not row["review"] or row["review"]["verdict"] != review):
+                continue
+            if needle and needle not in " ".join(str(x).lower() for x in (
+                    row["ticket_num"], row["ticket_id"], row["engineer"], row["engineer_name"], row["subject"],
+                    row["reason"])):
+                continue
+            items.append(row)
+            if len(items) > limit:
+                break
+        more = len(items) > limit
+        return {"items": items[:limit], "more": more}
+
+    def alert(self, alert_id: int) -> dict | None:
+        doc = self.db.alerts.find_one({"id": alert_id}, {"_id": 0})
+        if doc is None:
+            return None
+        row = self._alert_row(self._alert_doc(doc), self._latest_feedback())
+        row["payload"] = _json(doc["payload"])
+        nums = self._ticket_nums()
+        row["trace"] = [self._activity_row(r, nums) for r in self.db.activity.find(
+            {"rule": doc["rule"], "trigger_event_id": doc["trigger_event_id"]}, {"_id": 0}).sort("id", 1)]
+        row["feedback_history"] = [
+            {**f, "by_name": self.name(f["by_email"])} for f in self.db.feedback.find(
+                {"rule": doc["rule"], "trigger_event_id": doc["trigger_event_id"]}, {"_id": 0}).sort("id", -1)]
+        return row
+
+    def add_feedback(self, alert_id: int, verdict: str, note: str | None, by_email: str) -> dict | None:
+        if verdict not in VERDICTS:
+            raise ValueError("verdict must be 'correct' or 'false_alarm'")
+        doc = self.db.alerts.find_one({"id": alert_id}, {"rule": 1, "trigger_event_id": 1})
+        if doc is None:
+            return None
+        self.db.feedback.insert_one({
+            "id": next_id(self.db, "feedback"), "rule": doc["rule"], "trigger_event_id": doc["trigger_event_id"],
+            "verdict": verdict, "note": (note or "").strip()[:2000] or None, "by_email": by_email, "at": _iso(_now()),
+        })
+        return self.alert(alert_id)
+
+    # --- activity -----------------------------------------------------------------------------
+
+    def _max_ticket_nums(self, collection) -> dict[str, int]:
+        nums: dict[str, int] = {}
+        for r in collection.find({"ticket_num": {"$ne": None}}, {"_id": 0, "ticket_id": 1, "ticket_num": 1}):
+            tid, num = r.get("ticket_id"), r.get("ticket_num")
+            if num is not None and (tid not in nums or num > nums[tid]):
+                nums[tid] = num
+        return nums
+
+    def _ticket_nums(self) -> dict[str, int]:
+        cached = getattr(self, "_nums_cache", None)
+        if cached and (_now() - cached[0]).total_seconds() < 5:
+            return cached[1]
+        nums = self._max_ticket_nums(self.db.activity)
+        nums.update(self._max_ticket_nums(self.db.alerts))  # alerts win, as in the SQLite UNION ALL
+        self._nums_cache = (_now(), nums)
+        return nums
+
+    def activity(self, *, after_id: int | None = None, before_id: int | None = None, kinds: list[str] | None = None,
+                 rule: str | None = None, team: str | None = None, limit: int = 150) -> list[dict]:
+        query: dict = {}
+        if after_id is not None:
+            query["id"] = {"$gt": after_id}
+        if before_id is not None:
+            query.setdefault("id", {})["$lt"] = before_id
+        if kinds:
+            query["kind"] = {"$in": kinds}
+        if rule:
+            query["rule"] = rule
+        order = 1 if after_id is not None else -1
+        members = self.team_members(team)
+        nums = self._ticket_nums()
+        out = []
+        for r in self.db.activity.find(query, {"_id": 0}).sort("id", order):
+            if members is not None and r.get("engineer") and r["engineer"].lower() not in members:
+                continue
+            out.append(self._activity_row(r, nums))
+            if len(out) >= limit:
+                break
+        return out
+
+    # --- tickets ------------------------------------------------------------------------------
+
+    def ticket(self, ticket_ref: str) -> dict | None:
+        ref = ticket_ref.lstrip("#")
+        ticket_id = ref
+        if ref.isdigit():
+            num = int(ref)
+            hit = self.db.activity.find_one({"ticket_num": num, "ticket_id": {"$ne": None}}, {"ticket_id": 1}) \
+                or self.db.alerts.find_one({"ticket_num": num}, {"ticket_id": 1})
+            if hit is None:
+                return None
+            ticket_id = hit["ticket_id"]
+        nums = self._ticket_nums()
+        trace = [self._activity_row(r, nums) for r in self.db.activity.find(
+            {"ticket_id": ticket_id}, {"_id": 0}).sort("id", 1)]
+        checks = [{k: r.get(k) for k in ("rule", "trigger_event_id", "due_at", "attempts", "done", "outcome",
+                                         "engineer", "created_at", "finished_at")}
+                  for r in self.db.checks.find({"ticket_id": ticket_id}, {"_id": 0}).sort("due_at", 1)]
+        fb = self._latest_feedback()
+        alerts = [self._alert_row(self._alert_doc(r), fb) for r in self.db.alerts.find(
+            {"ticket_id": ticket_id}, {"_id": 0}).sort("sent_at", 1)]
+        if not trace and not checks and not alerts:
+            return None
+        num = next((x["ticket_num"] for x in trace + alerts if x.get("ticket_num")), None)
+        subject = next((a["subject"] for a in alerts if a.get("subject")), None) or next(
+            ((t["data"] or {}).get("subject") for t in trace if (t["data"] or {}).get("subject")), None)
+        url = next((a["url"] for a in alerts if a.get("url")), None)
+        return {"ticket_id": ticket_id, "ticket_num": num, "subject": subject, "url": url, "trace": trace,
+                "checks": checks, "alerts": alerts}
+
+    # --- engineers ----------------------------------------------------------------------------
+
+    def engineers(self, hours: float, team: str | None) -> list[dict]:
+        since = _iso(_now() - timedelta(hours=hours))
+        fb = self._latest_feedback()
+        alerts = defaultdict(Counter)
+        false_alarms = Counter()
+        for r in self.db.alerts.find({"sent_at": {"$gte": since}}, {"_id": 0}):
+            e = (r.get("engineer") or "").lower()
+            alerts[e][r["rule"]] += 1
+            f = fb.get((r["rule"], r["trigger_event_id"]))
+            if f and f["verdict"] == "false_alarm":
+                false_alarms[e] += 1
+        checks = Counter()
+        last_seen: dict[str, str] = {}
+        for r in self.db.activity.find(
+                {"kind": {"$in": ["check", "status"]}, "at": {"$gte": since}},
+                {"_id": 0, "engineer": 1, "at": 1}):
+            e = (r.get("engineer") or "").lower()
+            checks[e] += 1
+            if e not in last_seen or (r["at"] or "") > last_seen[e]:
+                last_seen[e] = r["at"]
+        out = []
+        for t in self.teams:
+            if team and t["name"] != team:
+                continue
+            for e in t["engineers"]:
+                k = e.lower()
+                out.append({"email": e, "name": self.name(e), "team": t["name"],
+                            "associates": t["associates"], "alerts": sum(alerts[k].values()),
+                            "by_rule": dict(alerts[k]), "checks": checks[k], "false_alarms": false_alarms[k],
+                            "last_activity": last_seen.get(k)})
+        out.sort(key=lambda x: (-x["alerts"], x["name"] or ""))
+        return out
+
+    # --- sessions -----------------------------------------------------------------------------
+
+    def create_session(self, token_hash: str, email: str, name: str | None, picture: str | None, hours: float) -> None:
+        now = _now()
+        self.db.dashboard_sessions.delete_many({"expires_at": {"$lt": _iso(now)}})
+        self.db.dashboard_sessions.update_one({"token_hash": token_hash}, {"$set": {
+            "token_hash": token_hash, "email": email, "name": name, "picture": picture,
+            "created_at": _iso(now), "expires_at": _iso(now + timedelta(hours=hours))}}, upsert=True)
+
+    def session(self, token_hash: str) -> dict | None:
+        doc = self.db.dashboard_sessions.find_one(
+            {"token_hash": token_hash, "expires_at": {"$gt": _iso(_now())}}, {"_id": 0})
+        return doc or None
+
+    def end_session(self, token_hash: str) -> None:
+        self.db.dashboard_sessions.delete_one({"token_hash": token_hash})

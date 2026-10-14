@@ -1,0 +1,12 @@
+{
+  "globals": {
+    "__REACT_DEVTOOLS_GLOBAL_HOOK__": "readonly"
+  },
+  "ignorePatterns": [
+    "frontend/build/**",
+    "frontend/prebuilt/**",
+    "dashboard/static/**",
+    "dashboard/web/dist/**",
+    "**/*.min.js"
+  ]
+}

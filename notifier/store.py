@@ -1,15 +1,29 @@
-"""SQLite state: per-ticket progress, scheduled checks, sent alerts (for de-duplication), and the activity
+"""Notifier state: per-ticket progress, scheduled checks, sent alerts (for de-duplication), and the activity
 trace the dashboard reads (every cycle, check, model call, alert and error, append-only).
 
-The dashboard (python -m dashboard) opens the same file read-mostly; WAL mode lets it read while the
-notifier writes."""
+Two backends, chosen by the environment and sharing one interface (same method names, same return shapes, so
+the rest of the notifier and the dashboard don't change):
+
+- SQLite (default): a single state.db file. The dashboard opens it read-mostly; WAL lets it read while the
+  notifier writes. Used for local runs and the tests.
+- MongoDB (when MONGO_URL is set): the deployed app's database. Timestamps stay ISO-8601 UTC strings, so they
+  remain comparable and parseable with datetime.fromisoformat, exactly as in SQLite.
+
+`Store(path)` returns whichever backend is configured. The duplicate-alert rules (claim_alert, record_alert)
+are implemented the same way in both: an atomic claim and an insert-or-ignore, never find-then-insert.
+"""
 
 from __future__ import annotations
 
 import json
+import logging
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+
+from .mongo import DuplicateKeyError, ensure_indexes, get_db, mongo_enabled, next_id
+
+log = logging.getLogger(__name__)
 
 # Columns added after the first release; created on open when missing.
 MIGRATIONS = {
@@ -96,7 +110,14 @@ def open_db(path: str | Path) -> sqlite3.Connection:
     return db
 
 
-class Store:
+def Store(path: str | Path):
+    """The configured state store: MongoDB when MONGO_URL is set, otherwise SQLite at `path`."""
+    if mongo_enabled():
+        return MongoStore()
+    return SqliteStore(path)
+
+
+class SqliteStore:
     def __init__(self, path: str | Path):
         self.db = open_db(path)
 
@@ -176,6 +197,10 @@ class Store:
             is not None
         )
 
+    def count_alerts(self, rule: str) -> int:
+        """How many alerts have been recorded for a rule (used by the off-shift sweep trace)."""
+        return self.db.execute("SELECT COUNT(*) FROM alerts WHERE rule=?", (rule,)).fetchone()[0]
+
     def claim_alert(self, rule: str, trigger_event_id: str) -> bool:
         """Reserve the right to post this alert, right before posting it. Atomic: when several notifier copies
         race for the same alert, exactly one gets True. Call release_alert() if the post then fails, so it
@@ -204,3 +229,121 @@ class Store:
              None if dry_run is None else int(dry_run)),
         )
         self.db.commit()
+
+
+class MongoStore:
+    """MongoDB-backed Store. Same methods and return shapes as SqliteStore.
+
+    Collections mirror the SQLite tables (EMERGENT_DEPLOY.md section 4). activity and alerts carry an integer
+    `id` (SQLite's AUTOINCREMENT rowid) the dashboard orders and paginates by. All timestamps are ISO strings.
+    """
+
+    def __init__(self, db=None):
+        self.db = db if db is not None else get_db()
+        ensure_indexes(self.db)
+
+    # --- activity trace (read by the dashboard) -----------------------------------------------
+
+    def log(self, kind: str, summary: str, *, rule: str | None = None, trigger_event_id: str | None = None,
+            ticket_id: str | None = None, ticket_num: int | None = None, engineer: str | None = None,
+            outcome: str | None = None, data: dict | None = None) -> None:
+        self.db.activity.insert_one({
+            "id": next_id(self.db, "activity"), "at": _now(), "kind": kind, "rule": rule,
+            "trigger_event_id": trigger_event_id, "ticket_id": ticket_id or None, "ticket_num": ticket_num,
+            "engineer": engineer, "outcome": outcome, "summary": summary[:1000],
+            "data": json.dumps(data, default=str) if data else None,
+        })
+
+    def get(self, key: str) -> str | None:
+        doc = self.db.kv.find_one({"key": key})
+        return doc["value"] if doc else None
+
+    def put(self, key: str, value: str) -> None:
+        self.db.kv.update_one({"key": key}, {"$set": {"value": value}}, upsert=True)
+
+    def last_seq(self, ticket_id: str) -> int | None:
+        doc = self.db.ticket_progress.find_one({"ticket_id": ticket_id})
+        return doc["last_seq"] if doc else None
+
+    def set_last_seq(self, ticket_id: str, seq: int) -> None:
+        self.db.ticket_progress.update_one({"ticket_id": ticket_id}, {"$set": {"last_seq": seq}}, upsert=True)
+
+    def schedule(self, rule: str, trigger_event_id: str, ticket_id: str, due_at: datetime,
+                 engineer: str | None = None) -> bool:
+        """True when the check is new. The unique (rule, trigger_event_id) index makes this insert-or-ignore."""
+        try:
+            self.db.checks.insert_one({
+                "rule": rule, "trigger_event_id": trigger_event_id, "ticket_id": ticket_id,
+                "due_at": due_at.isoformat(), "attempts": 0, "done": 0, "outcome": None,
+                "engineer": engineer, "created_at": _now(), "finished_at": None,
+            })
+            return True
+        except DuplicateKeyError:
+            return False
+
+    def due_checks(self, now: datetime, max_attempts: int = 5) -> list[tuple[str, str, str]]:
+        cur = self.db.checks.find(
+            {"done": 0, "due_at": {"$lte": now.isoformat()}, "attempts": {"$lt": max_attempts}}).sort("due_at", 1)
+        return [(d["rule"], d["trigger_event_id"], d["ticket_id"]) for d in cur]
+
+    def reschedule(self, rule: str, trigger_event_id: str, due_at: datetime) -> None:
+        self.db.checks.update_one(
+            {"rule": rule, "trigger_event_id": trigger_event_id},
+            {"$set": {"due_at": due_at.isoformat(), "outcome": "waiting for reply"}})
+
+    def finish_check(self, rule: str, trigger_event_id: str, outcome: str) -> None:
+        self.db.checks.update_one(
+            {"rule": rule, "trigger_event_id": trigger_event_id},
+            {"$set": {"done": 1, "outcome": outcome, "finished_at": _now()}})
+
+    def fail_check(self, rule: str, trigger_event_id: str, error: str) -> None:
+        self.db.checks.update_one(
+            {"rule": rule, "trigger_event_id": trigger_event_id},
+            {"$inc": {"attempts": 1}, "$set": {"outcome": f"error: {error}"[:500]}})
+
+    def already_alerted(self, rule: str, trigger_event_id: str) -> bool:
+        return self.db.alerts.find_one({"rule": rule, "trigger_event_id": trigger_event_id}) is not None
+
+    def count_alerts(self, rule: str) -> int:
+        return self.db.alerts.count_documents({"rule": rule})
+
+    def claim_alert(self, rule: str, trigger_event_id: str) -> bool:
+        """Atomic reservation. An alerts row already existing means it was posted: never claim again. Otherwise
+        the claim is a single insert into alert_claims; its unique index lets exactly one racer win."""
+        if self.already_alerted(rule, trigger_event_id):
+            return False
+        try:
+            self.db.alert_claims.insert_one(
+                {"rule": rule, "trigger_event_id": trigger_event_id, "claimed_at": _now()})
+            return True
+        except DuplicateKeyError:
+            return False
+
+    def release_alert(self, rule: str, trigger_event_id: str) -> None:
+        self.db.alert_claims.delete_one({"rule": rule, "trigger_event_id": trigger_event_id})
+
+    def record_alert(self, rule: str, trigger_event_id: str, ticket_id: str, engineer: str, payload: dict,
+                     *, ticket_num: int | None = None, subject: str | None = None, engineer_name: str | None = None,
+                     associates: list[str] | None = None, reason: str | None = None, url: str | None = None,
+                     dry_run: bool | None = None) -> None:
+        """Insert-or-ignore: never a second row for the same (rule, trigger_event_id), like SQLite's INSERT OR
+        IGNORE. An upsert keyed on that pair; a DuplicateKeyError is ignored only when that pair's row now exists
+        (two upserts raced). Any other collision (the integer `id`) is logged and retried with a fresh id, so
+        the row is never silently lost."""
+        key = {"rule": rule, "trigger_event_id": trigger_event_id}
+        for attempt in range(3):
+            try:
+                self.db.alerts.update_one(key, {"$setOnInsert": {
+                    "id": next_id(self.db, "alerts"), "rule": rule, "trigger_event_id": trigger_event_id,
+                    "ticket_id": ticket_id, "engineer": engineer, "payload": json.dumps(payload, default=str),
+                    "sent_at": _now(), "ticket_num": ticket_num, "subject": subject, "engineer_name": engineer_name,
+                    "associates": json.dumps(associates) if associates is not None else None, "reason": reason,
+                    "url": url, "dry_run": None if dry_run is None else int(dry_run),
+                }}, upsert=True)
+                return
+            except DuplicateKeyError as e:
+                if self.already_alerted(rule, trigger_event_id):
+                    return  # another copy recorded the same alert first
+                log.error("record_alert %s %s: duplicate key other than (rule, trigger_event_id), attempt %d: %s",
+                          rule, trigger_event_id, attempt + 1, e)
+        raise RuntimeError(f"could not record alert {rule} {trigger_event_id}: alert id collisions")
