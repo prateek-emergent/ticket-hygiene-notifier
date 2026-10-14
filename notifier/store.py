@@ -116,6 +116,11 @@ def open_db(path: str | Path) -> sqlite3.Connection:
     return db
 
 
+# What a "start fresh" reset clears (Store.reset_trial_data): alerts, reviews, the activity trace and the
+# in-flight checks. Kept: ticket_progress (so old events are not re-alerted), kv, leases, sessions, counters.
+RESET_TABLES = ("alerts", "alert_claims", "feedback", "activity", "checks")
+
+
 def Store(path: str | Path):
     """The configured state store: MongoDB when MONGO_URL is set, otherwise SQLite at `path`."""
     if mongo_enabled():
@@ -220,6 +225,26 @@ class SqliteStore:
                                   (name, owner, until))
         self.db.commit()
         return cur.rowcount == 1
+
+    def reset_trial_data(self, label: str) -> dict[str, int] | None:
+        """Clear the trial data once per `label`: copy each RESET_TABLES table to <table>_bak_<label>, then empty
+        it. Returns the counts cleared, or None when this label was already done."""
+        done_key = f"reset_done:{label}"
+        if self.get(done_key):
+            return None
+        suffix = "".join(c if c.isalnum() else "_" for c in label)
+        have = {r[0] for r in self.db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        counts = {}
+        for name in RESET_TABLES:
+            if name not in have:
+                continue
+            counts[name] = self.db.execute(f"SELECT COUNT(*) FROM {name}").fetchone()[0]
+            self.db.execute(f"DROP TABLE IF EXISTS {name}_bak_{suffix}")
+            self.db.execute(f"CREATE TABLE {name}_bak_{suffix} AS SELECT * FROM {name}")
+            self.db.execute(f"DELETE FROM {name}")
+        self.db.commit()
+        self.put(done_key, _now())
+        return counts
 
     def release_lease(self, name: str, owner: str) -> None:
         """Give the lease up (on shutdown), so another copy can take over at once instead of after the TTL."""
@@ -345,6 +370,22 @@ class MongoStore:
             return True
         except DuplicateKeyError:
             return False
+
+    def reset_trial_data(self, label: str) -> dict[str, int] | None:
+        """Same contract as SqliteStore.reset_trial_data. Copies each collection to <name>_bak_<label> with $out,
+        then deletes its documents (the collection and its unique indexes stay, so duplicate protection holds)."""
+        done_key = f"reset_done:{label}"
+        if self.get(done_key):
+            return None
+        suffix = "".join(c if c.isalnum() else "_" for c in label)
+        counts = {}
+        for name in RESET_TABLES:
+            counts[name] = self.db[name].count_documents({})
+            if counts[name]:
+                self.db[name].aggregate([{"$match": {}}, {"$out": f"{name}_bak_{suffix}"}])
+            self.db[name].delete_many({})
+        self.put(done_key, _now())
+        return counts
 
     def release_lease(self, name: str, owner: str) -> None:
         self.db.leases.delete_one({"_id": name, "owner": owner})

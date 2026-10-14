@@ -104,6 +104,24 @@ async def run_watchdog() -> None:
     await build_watchdog(load_rules_config()).run_forever()
 
 
+def reset_trial_data_once(store) -> None:
+    """RESET_TRIAL_DATA=<label> (e.g. a date) in the environment: clear the trial alerts, reviews, activity and
+    checks once for that label, keeping a backup copy (<name>_bak_<label>) in the same database. Runs in the copy
+    holding the notifier lease, before the notifier starts; a later start with the same label does nothing."""
+    label = os.getenv("RESET_TRIAL_DATA", "").strip()
+    if not label:
+        return
+    try:
+        counts = store.reset_trial_data(label)
+    except Exception:
+        log.exception("trial data reset %r failed; nothing more is attempted until the next start", label)
+        return
+    if counts is None:
+        log.info("trial data reset %r was already done; remove RESET_TRIAL_DATA when convenient", label)
+    else:
+        log.warning("trial data reset %r: cleared %s (backups kept as <name>_bak_%s)", label, counts, label)
+
+
 async def lead(me: str | None = None) -> None:
     """Run the notifier and watchdog in exactly one copy of the app. Every LEASE_RENEW_SECONDS this copy takes or
     renews the "notifier" lease in the shared database; it starts both while it holds the lease and stops them as
@@ -120,6 +138,7 @@ async def lead(me: str | None = None) -> None:
                 log.exception("could not take or renew the notifier lease")
                 mine = False
             if mine and not running:
+                reset_trial_data_once(store)
                 running = [asyncio.create_task(keep_running("notifier", run_notifier)),
                            asyncio.create_task(keep_running("watchdog", run_watchdog))]
                 State.leader = True

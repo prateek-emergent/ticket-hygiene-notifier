@@ -97,3 +97,27 @@ def test_the_notifier_lease_has_one_holder_at_a_time(tmp_path, backend):
     assert not store.take_lease("notifier", "a", 0.3)
     store.release_lease("notifier", "b")               # b shuts down cleanly
     assert store.take_lease("notifier", "a", 0.3)
+
+
+@pytest.mark.parametrize("backend", ["sqlite", "mongo"])
+def test_trial_data_reset_runs_once_keeps_a_backup_and_keeps_protection(tmp_path, backend):
+    if backend == "sqlite":
+        store = Store(tmp_path / "state.db")
+        backup_rows = lambda name: store.db.execute(f"SELECT COUNT(*) FROM {name}").fetchone()[0]  # noqa: E731
+    else:
+        import mongomock
+        from notifier.store import MongoStore
+        store = MongoStore(db=mongomock.MongoClient()["t"])
+        backup_rows = lambda name: store.db[name].count_documents({})  # noqa: E731
+    store.log("check", "old activity")
+    store.claim_alert("status_not_matching_shift", "k1")
+    store.record_alert("status_not_matching_shift", "k1", "", "x@emergent.sh", {})
+    store.set_last_seq("ticket-1", 42)
+    counts = store.reset_trial_data("2026-10-14")
+    assert counts["alerts"] == 1 and counts["activity"] == 1 and counts["alert_claims"] == 1
+    assert store.count_alerts("status_not_matching_shift") == 0
+    assert backup_rows("alerts_bak_2026_10_14") == 1 and backup_rows("activity_bak_2026_10_14") == 1
+    assert store.last_seq("ticket-1") == 42  # kept: old ticket events are not re-alerted
+    assert store.reset_trial_data("2026-10-14") is None  # same label again: nothing happens
+    # duplicate protection still holds on the emptied tables
+    assert store.claim_alert("r", "e") and not store.claim_alert("r", "e")
