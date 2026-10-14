@@ -94,6 +94,53 @@ async def run_watchdog() -> None:
     await build_watchdog(load_rules_config()).run_forever()
 
 
+# What the startup network check probes: (label, host, port, path for an unauthenticated GET or None).
+NETWORK_TARGETS = [
+    ("trinity", "trinity-base.internal.emergent.host", 443, "/api/mcp"),
+    ("envcore (10.99 range)", "envcore.int.apis.emergentagent.com", 80, "/"),
+    ("redash (10.100 range)", "redash.internal-apps.emergentagent.com", 443, "/"),
+    ("litellm central-infra (Jev)", "litellm.central-infra-apps.emergentagent.com", 443, "/health/liveliness"),
+    ("litellm internal-apps", "litellm.internal-apps.emergentagent.com", 443, "/health/liveliness"),
+    ("slack", "slack.com", 443, "/api/api.test"),
+    ("public internet", "www.google.com", 443, "/"),
+]
+
+
+async def network_check() -> None:
+    """Once at startup: log what this host can reach, so a blocked dependency shows up as a clear line in the
+    logs instead of endless timeouts. No credentials are sent; only DNS, a TCP connect and a plain GET."""
+    loop = asyncio.get_running_loop()
+    proxies = {k: v.split("@")[-1] for k, v in os.environ.items() if k.lower() in {"http_proxy", "https_proxy", "all_proxy", "no_proxy"}}
+    try:
+        nameservers = [l.split()[1] for l in Path("/etc/resolv.conf").read_text().splitlines() if l.startswith("nameserver")]
+    except OSError:
+        nameservers = []
+    log.info("network check: nameservers=%s proxies=%s", nameservers, proxies or "none")
+    for label, host, port, path in NETWORK_TARGETS:
+        try:
+            ips = sorted({a[4][0] for a in await loop.getaddrinfo(host, port, type=1)})
+        except OSError as e:
+            log.warning("network check: %-28s %s -> DNS FAILED (%s)", label, host, e)
+            continue
+        t0 = time.monotonic()
+        try:
+            _, writer = await asyncio.wait_for(asyncio.open_connection(ips[0], port), timeout=6)
+            writer.close()
+            tcp = f"TCP ok in {int((time.monotonic() - t0) * 1000)} ms"
+        except (OSError, asyncio.TimeoutError) as e:
+            log.warning("network check: %-28s %s -> %s:%s TCP FAILED (%s)", label, host, ips[0], port,
+                        type(e).__name__)
+            continue
+        scheme = "https" if port == 443 else "http"
+        try:
+            async with State.session.get(f"{scheme}://{host}{path}", timeout=aiohttp.ClientTimeout(total=10),
+                                         allow_redirects=False) as r:
+                http = f"HTTP {r.status}"
+        except Exception as e:
+            http = f"HTTP failed ({type(e).__name__})"
+        log.info("network check: %-28s %s -> %s:%s %s, %s", label, host, ips[0], port, tcp, http)
+
+
 async def startup() -> None:
     rc = load_rules_config()
     d = rc.DASHBOARD
@@ -106,8 +153,10 @@ async def startup() -> None:
     State.session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=None, sock_connect=5),
                                           auto_decompress=False)
     storage = "MongoDB" if os.getenv("MONGO_URL", "").strip() else f"SQLite ({os.getenv('STATE_DB', 'state.db')})"
+    if os.getenv("NETWORK_CHECK", "true").strip().lower() not in {"0", "false", "no", "off"}:
+        State.tasks.append(asyncio.create_task(network_check()))
     if notifier_enabled():
-        State.tasks = [asyncio.create_task(keep_running("notifier", run_notifier)),
+        State.tasks += [asyncio.create_task(keep_running("notifier", run_notifier)),
                        asyncio.create_task(keep_running("watchdog", run_watchdog))]
         log.info("started dashboard, notifier and watchdog; storage: %s", storage)
     else:
