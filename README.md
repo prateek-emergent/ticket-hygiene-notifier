@@ -263,6 +263,42 @@ It reads only `state.db` and `SLACK_BOT_TOKEN`, so it still works when the notif
 
 ---
 
+## Where the code lives, and how changes flow
+
+The code exists in four places. **Nothing syncs on its own.**
+
+| Place | What it is | How code gets in |
+|---|---|---|
+| **Mac** (this folder) | Where code is written and tested | Development |
+| **GitHub** `prateek-emergent/ticket-hygiene-notifier` (private) | The single source of truth for code | `git push` from the Mac |
+| **Preview pod** (Emergent job `alert-dedupe-mongo`) | What gets deployed | `git pull` in the pod (its GitHub link can read, but not push) |
+| **Deployed app** (`alert-dedupe-mongo.internal.aws.emergent.host`) | What runs | **Deploy** button: builds from the pod's files *at that moment*, not from GitHub |
+
+```
+   develop + test        push              pull into pod           Deploy button         verify
+   ┌──────────┐ git push ┌──────────┐ git pull ┌─────────────┐  (Emergent UI)  ┌──────────┐  logs,
+   │   Mac    │────────▶ │  GitHub  │────────▶ │ preview pod │───────────────▶ │ deployed │─▶ /health
+   └──────────┘          └──────────┘          └─────────────┘                 └──────────┘
+        ▲                                              │
+        └──── pod → Mac copy (only if code was changed in the pod; see below) ┘
+```
+
+**Normal change:**
+1. Change and test on the Mac (`python -m pytest`), commit, `git push`.
+2. In the pod (through the envcore tools, or its terminal), `cd /app && git pull`.
+3. Click **Deploy** in the Emergent job. Code changes rebuild (about 4 min); setting-only changes take about 1 min.
+4. Check the deploy steps, the app logs and `/health`.
+
+**Rules:**
+- **One source of truth.** Don't edit the same files on the Mac and in the pod at the same time.
+- **If code was changed in the pod** (by the Emergent agent, or by hand), bring it back to the Mac *before* changing anything else. "Save to GitHub" is not available for this repo in the Emergent UI (the selector is greyed out), and the pod's GitHub link can't push. So the pod's new commits are copied over as patches:
+  1. in the pod: `git format-patch <last-synced-commit>..HEAD`;
+  2. transfer through envcore, checking the archive's sha256;
+  3. on the Mac: `git am --ignore-whitespace` on a `pod-sync` branch. The original upload has Windows line endings, so that flag is needed;
+  4. check `git rev-parse 'pod-sync^{tree}'` equals the pod's `git rev-parse 'HEAD^{tree}'`. Equal tree hashes mean identical files;
+  5. merge `pod-sync` into `main`, run the tests, push.
+- **Settings are not code.** `.env` (preview pod) and `backend/.env` (what the deploy reads) hold the keys and switches (`RUN_NOTIFIER`, `DRY_RUN`). They are git-ignored, live only in the pod, and are changed there; a setting change needs a redeploy but no push or pull.
+
 ## Configuration: two places
 
 | Where | What | Examples |
