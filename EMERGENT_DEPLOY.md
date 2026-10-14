@@ -23,7 +23,9 @@ One container, three long-running processes. See `Dockerfile` and `docker/start.
 
 ## 2. Platform settings (required)
 
-- **Exactly one replica. No autoscaling.** A second copy would double the work.
+- **Any number of copies is fine** (the platform runs two). All copies serve the dashboard; only the copy holding
+  the `notifier` lease in the database runs the notifier and watchdog (`backend/server.py`, `lead()`), and a
+  standby copy takes over within about a minute if that copy stops.
 - **Never park or scale to zero.** The notifier works with no web traffic. If parked, it stops checking tickets, and the watchdog stops with it.
 - **Internal app.** It must reach Trinity's MCP endpoint and Emergent's LiteLLM (both internal addresses), plus `slack.com`.
 

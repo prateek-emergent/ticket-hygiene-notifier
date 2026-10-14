@@ -48,6 +48,9 @@ def test_health_restarts_only_a_stalled_notifier(server, monkeypatch):
 
     monkeypatch.setenv("RUN_NOTIFIER", "true")
     now = datetime.now(timezone.utc)
+    server.State.leader = False
+    assert b"standby" in server.health()[1]  # another copy runs the notifier: nothing to restart here
+    server.State.leader = True
     server.State.started = time.monotonic()
     assert server.health()[0] == 200  # still starting
     server.State.started = time.monotonic() - 3600
@@ -59,3 +62,43 @@ def test_health_restarts_only_a_stalled_notifier(server, monkeypatch):
     assert server.health()[0] == 503
     monkeypatch.setenv("RUN_NOTIFIER", "false")
     assert server.health()[0] == 200  # dashboard only: nothing to restart for
+
+
+def test_two_copies_run_one_notifier_and_the_standby_takes_over(server, monkeypatch, tmp_path):
+    """The platform runs two copies of the app: only the lease holder runs the notifier; when it stops,
+    the other copy takes over."""
+    import asyncio
+
+    monkeypatch.setenv("STATE_DB", str(tmp_path / "s.db"))
+    monkeypatch.setattr(server, "LEASE_SECONDS", 0.6)
+    monkeypatch.setattr(server, "LEASE_RENEW_SECONDS", 0.1)
+    running = set()
+
+    async def fake_notifier():
+        running.add(asyncio.current_task().get_name())
+        try:
+            await asyncio.sleep(3600)
+        finally:
+            running.discard(asyncio.current_task().get_name())
+
+    async def scenario():
+        monkeypatch.setattr(server, "keep_running", lambda label, start: fake_notifier()
+                            if label == "notifier" else asyncio.sleep(3600))
+
+        async def copy(name):
+            await server.lead(me=name)  # each copy of the app has its own identity
+
+        a = asyncio.create_task(copy("copy-a"), name="copy-a")
+        await asyncio.sleep(0.05)
+        b = asyncio.create_task(copy("copy-b"), name="copy-b")
+        await asyncio.sleep(0.5)
+        first = len(running)
+        a.cancel()  # the leader stops (e.g. its pod is replaced): it releases the lease
+        await asyncio.gather(a, return_exceptions=True)
+        await asyncio.sleep(0.5)
+        second = len(running)
+        b.cancel()
+        await asyncio.gather(b, return_exceptions=True)
+        return first, second
+
+    assert asyncio.run(scenario()) == (1, 1)  # one notifier at a time, and one again after the takeover

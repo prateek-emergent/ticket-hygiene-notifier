@@ -6,6 +6,9 @@ dashboard/static). This one process runs the whole app as asyncio tasks on uvico
   * the dashboard (aiohttp) on 127.0.0.1:8090 inside this process; every request is forwarded to it;
   * the notifier and the down-alert watchdog, only where they should run (notifier_enabled()).
 When uvicorn stops or reloads, the tasks stop with the process, so a stray second notifier can't survive.
+The platform may run several copies of the app (it runs two): all serve the dashboard, but only the copy
+holding the "notifier" lease in the database runs the notifier and watchdog (lead()); another takes over
+within about a minute if that copy stops.
 Elsewhere (a laptop, Docker) the app runs as before: docker/start.sh, python -m notifier / dashboard.
 """
 
@@ -14,8 +17,10 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import socket
 import sys
 import time
+import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -47,6 +52,9 @@ for noisy in ("httpx", "httpx2", "mcp", "anthropic"):
 DASHBOARD_PORT = int(os.getenv("INTERNAL_DASHBOARD_PORT", "8090"))
 HEARTBEAT_STALE = timedelta(minutes=10)
 STARTUP_GRACE = timedelta(minutes=15)
+LEASE = "notifier"
+LEASE_SECONDS = 60  # a copy that stops renewing loses the notifier this long after its last renewal
+LEASE_RENEW_SECONDS = 20
 HOP_BY_HOP = {"connection", "keep-alive", "transfer-encoding", "upgrade", "proxy-connection", "te", "trailer"}
 
 
@@ -68,6 +76,8 @@ class State:
     session: aiohttp.ClientSession | None = None
     tasks: list[asyncio.Task] = []
     store = None
+    leader = False  # this copy currently runs the notifier and watchdog
+    me = f"{socket.gethostname()}:{os.getpid()}:{uuid.uuid4().hex[:6]}"
 
 
 async def keep_running(name: str, start) -> None:
@@ -92,6 +102,48 @@ async def run_notifier() -> None:
 
 async def run_watchdog() -> None:
     await build_watchdog(load_rules_config()).run_forever()
+
+
+async def lead(me: str | None = None) -> None:
+    """Run the notifier and watchdog in exactly one copy of the app. Every LEASE_RENEW_SECONDS this copy takes or
+    renews the "notifier" lease in the shared database; it starts both while it holds the lease and stops them as
+    soon as it doesn't (another copy took over, or the database can't be reached to renew it)."""
+    me = me or State.me
+    store = Store(os.getenv("STATE_DB", "state.db"))
+    running: list[asyncio.Task] = []
+    announced_standby = False
+    try:
+        while True:
+            try:
+                mine = store.take_lease(LEASE, me, LEASE_SECONDS)
+            except Exception:
+                log.exception("could not take or renew the notifier lease")
+                mine = False
+            if mine and not running:
+                running = [asyncio.create_task(keep_running("notifier", run_notifier)),
+                           asyncio.create_task(keep_running("watchdog", run_watchdog))]
+                State.leader = True
+                log.info("this copy (%s) runs the notifier and watchdog", me)
+            elif not mine and running:
+                for t in running:
+                    t.cancel()
+                await asyncio.gather(*running, return_exceptions=True)
+                running, State.leader = [], False
+                log.warning("this copy (%s) lost the notifier lease; another copy runs it now", me)
+            elif not mine and not announced_standby:
+                log.info("this copy (%s) is on standby: another copy runs the notifier", me)
+                announced_standby = True
+            await asyncio.sleep(LEASE_RENEW_SECONDS)
+    finally:
+        for t in running:
+            t.cancel()
+        await asyncio.gather(*running, return_exceptions=True)
+        State.leader = False
+        if running:
+            try:
+                store.release_lease(LEASE, me)  # let a standby copy take over at once
+            except Exception:
+                log.exception("could not release the notifier lease")
 
 
 # What the startup network check probes: (label, host, port, path for an unauthenticated GET or None).
@@ -156,9 +208,9 @@ async def startup() -> None:
     if os.getenv("NETWORK_CHECK", "true").strip().lower() not in {"0", "false", "no", "off"}:
         State.tasks.append(asyncio.create_task(network_check()))
     if notifier_enabled():
-        State.tasks += [asyncio.create_task(keep_running("notifier", run_notifier)),
-                       asyncio.create_task(keep_running("watchdog", run_watchdog))]
-        log.info("started dashboard, notifier and watchdog; storage: %s", storage)
+        State.tasks.append(asyncio.create_task(lead()))
+        log.info("started the dashboard; the notifier and watchdog run in whichever copy holds the lease; "
+                 "storage: %s", storage)
     else:
         log.warning("started the dashboard only: the notifier runs in the deployed app (MONGO_URL set) or with "
                     "RUN_NOTIFIER=true; storage: %s", storage)
@@ -179,6 +231,8 @@ def health() -> tuple[int, bytes]:
     503 when it has stopped beating, so the platform restarts the app."""
     if not notifier_enabled():
         return 200, b"ok: dashboard only\n"
+    if not State.leader:
+        return 200, b"ok: standby (another copy runs the notifier)\n"
     if time.monotonic() - State.started < STARTUP_GRACE.total_seconds():
         return 200, b"ok: starting\n"
     try:

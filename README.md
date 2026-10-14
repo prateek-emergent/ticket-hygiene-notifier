@@ -219,7 +219,7 @@ Add `-v` after `notifier` (e.g. `py -m notifier -v run`) for detailed logs.
    - **Sharing beyond this laptop.** Google sign-in only works on `localhost` or over https. So associates use it once it is deployed (pending decision D10), not over the office network by IP.
 7. **Check everything:** `py -m pytest`, then a `backtest`, then `py -m notifier run` with `DRY_RUN=true`.
 
-**On the production machine,** use the container (next section). Run **one** notifier only: two would double-post.
+**On the production machine,** use the container (next section). On the Emergent platform several copies may run (it runs two): only the copy holding the `notifier` lease in the database runs the notifier and watchdog; the others serve the dashboard and take over within about a minute if it stops. Outside the platform (`docker/start.sh`, `python -m notifier run`), run **one** notifier only.
 
 ### Deploying with Docker
 

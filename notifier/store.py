@@ -18,7 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .mongo import DuplicateKeyError, ensure_indexes, get_db, mongo_enabled, next_id
@@ -82,6 +82,12 @@ CREATE TABLE IF NOT EXISTS alert_claims (
     trigger_event_id TEXT NOT NULL,
     claimed_at TEXT NOT NULL,
     PRIMARY KEY (rule, trigger_event_id)
+);
+-- Who may run a singleton job (the notifier) when several copies of the app run: see Store.take_lease.
+CREATE TABLE IF NOT EXISTS leases (
+    name TEXT PRIMARY KEY,
+    owner TEXT NOT NULL,
+    expires_at TEXT NOT NULL
 );
 """
 
@@ -201,6 +207,25 @@ class SqliteStore:
         """How many alerts have been recorded for a rule (used by the off-shift sweep trace)."""
         return self.db.execute("SELECT COUNT(*) FROM alerts WHERE rule=?", (rule,)).fetchone()[0]
 
+    def take_lease(self, name: str, owner: str, ttl_seconds: float) -> bool:
+        """Take or renew the lease `name` for `owner` until now + ttl. True when `owner` holds it afterwards:
+        it was free, expired, or already theirs. Atomic across processes sharing the database, so of several
+        copies of the app exactly one holds it at a time."""
+        now = datetime.now(timezone.utc)
+        until = (now + timedelta(seconds=ttl_seconds)).isoformat()
+        cur = self.db.execute("UPDATE leases SET owner=?, expires_at=? WHERE name=? AND (owner=? OR expires_at<?)",
+                              (owner, until, name, owner, now.isoformat()))
+        if cur.rowcount == 0:
+            cur = self.db.execute("INSERT OR IGNORE INTO leases (name, owner, expires_at) VALUES (?,?,?)",
+                                  (name, owner, until))
+        self.db.commit()
+        return cur.rowcount == 1
+
+    def release_lease(self, name: str, owner: str) -> None:
+        """Give the lease up (on shutdown), so another copy can take over at once instead of after the TTL."""
+        self.db.execute("DELETE FROM leases WHERE name=? AND owner=?", (name, owner))
+        self.db.commit()
+
     def claim_alert(self, rule: str, trigger_event_id: str) -> bool:
         """Reserve the right to post this alert, right before posting it. Atomic: when several notifier copies
         race for the same alert, exactly one gets True. Call release_alert() if the post then fails, so it
@@ -306,6 +331,23 @@ class MongoStore:
 
     def count_alerts(self, rule: str) -> int:
         return self.db.alerts.count_documents({"rule": rule})
+
+    def take_lease(self, name: str, owner: str, ttl_seconds: float) -> bool:
+        """Same contract as SqliteStore.take_lease. One upsert on the lease's _id: it matches when the lease is
+        ours or expired; when it is held by someone else the upsert collides with the existing _id
+        (DuplicateKeyError), so exactly one racer wins."""
+        now = datetime.now(timezone.utc)
+        until = (now + timedelta(seconds=ttl_seconds)).isoformat()
+        try:
+            self.db.leases.update_one(
+                {"_id": name, "$or": [{"owner": owner}, {"expires_at": {"$lt": now.isoformat()}}]},
+                {"$set": {"owner": owner, "expires_at": until}}, upsert=True)
+            return True
+        except DuplicateKeyError:
+            return False
+
+    def release_lease(self, name: str, owner: str) -> None:
+        self.db.leases.delete_one({"_id": name, "owner": owner})
 
     def claim_alert(self, rule: str, trigger_event_id: str) -> bool:
         """Atomic reservation. An alerts row already existing means it was posted: never claim again. Otherwise

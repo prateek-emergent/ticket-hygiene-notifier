@@ -4,6 +4,8 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
+import pytest
+
 from notifier.service import Monitor
 from notifier.store import Store
 from notifier.watchdog import Watchdog
@@ -76,3 +78,22 @@ def test_a_failed_dm_is_retried_next_tick_and_restarts_dont_repeat(tmp_path):
     assert "is down" in tick(w, 12)
     w2 = Watchdog(store, slack, DOWN | {"remind_every_minutes": 0}, ZoneInfo("Asia/Kolkata"), started=T0)
     assert asyncio.run(w2.tick(T0 + timedelta(minutes=200))) is None  # same problem, already reported
+
+
+@pytest.mark.parametrize("backend", ["sqlite", "mongo"])
+def test_the_notifier_lease_has_one_holder_at_a_time(tmp_path, backend):
+    import time as _time
+    if backend == "sqlite":
+        store = Store(tmp_path / "state.db")
+    else:
+        import mongomock
+        from notifier.store import MongoStore
+        store = MongoStore(db=mongomock.MongoClient()["t"])
+    assert store.take_lease("notifier", "a", 0.3)
+    assert not store.take_lease("notifier", "b", 0.3)  # held by a
+    assert store.take_lease("notifier", "a", 0.3)      # a renews
+    _time.sleep(0.4)                                   # a stops renewing: the lease expires
+    assert store.take_lease("notifier", "b", 0.3)
+    assert not store.take_lease("notifier", "a", 0.3)
+    store.release_lease("notifier", "b")               # b shuts down cleanly
+    assert store.take_lease("notifier", "a", 0.3)
