@@ -1,6 +1,6 @@
 # PRD: one app for ticket hygiene and shift monitoring
 
-**Status:** spec agreed for release 1, 2026-10-15. Release 1 (R1–R10, E2) built, tested and deployed 2026-10-15. Release 2 (P1) built 2026-10-15 except importing shift-guardian's history, which waits on its owner (pending_decisions D28).
+**Status:** spec agreed for release 1, 2026-10-15. Release 1 (R1–R10, E2) built, tested and deployed 2026-10-15. Release 2 (P1) built and deployed 2026-10-15.
 **Owner:** Prateek M. **Apps:** this app (`alert-dedupe-mongo`) absorbs `shift-guardian-2`.
 **Decisions taken:** section 9. **Background comparison of the two apps:** appendix A.
 
@@ -119,7 +119,6 @@ Read-only background sync: everyone's presence every 60 seconds, and open ticket
 - **Export:** alerts, reviews and reports to CSV (the read-only part of C4).
 - **"Mark actioned" with a note** on held or off-shift tickets, recorded in our app only (B3).
 - **Live shift views:** a week grid of who's on and off shift, and per-associate cards (D3).
-- **Import shift-guardian's history** (shift records, hold alerts) so reports don't start empty (E3), if its owner agrees.
 
 ### P2: later, but design for it
 - **Roster upload** in the dashboard (D2).
@@ -145,8 +144,6 @@ Read-only background sync: everyone's presence every 60 seconds, and open ticket
 | Q2 | Are **30 min** (theme 7) and **60 min** (theme 8) right for our teams? These are shift-guardian's values | Associates | No (configurable) |
 | Q3 | ~~Expo roster~~ **Received 2026-10-15** (16 Oct–15 Dec). Who refreshes it after 15 Dec is still open | Roster owner / Nikhita | No |
 | Q4 | Expo associate: Nikhita (from shift-guardian's mapping); confirm whether there are others | Nikhita | No |
-| Q6 | Can we **import shift-guardian's history** (P1)? | shift-guardian's owner | No |
-| Q7 | **Retirement date** for shift-guardian | shift-guardian's owner | No |
 
 ## 9. Decisions (2026-10-15)
 

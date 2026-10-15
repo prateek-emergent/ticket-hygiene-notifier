@@ -39,8 +39,6 @@ When a decision is made, move it to "Decided" with the date and the choice.
 | D25 | Themes 7 and 8: are 30 min and 60 min right? (PRD Q2) | Open (configurable) | Associates |
 | D26 | Who refreshes the Expo roster after 15 Dec (PRD Q3) | Open | Roster owner / Nikhita |
 | D27 | Expo associates besides Nikhita (PRD Q4) | Open | Nikhita |
-| D28 | Import shift-guardian's history (PRD Q6) | Open | shift-guardian's owner |
-| D29 | When to retire shift-guardian (PRD Q7) | Open; no action from us | shift-guardian's owner |
 
 ---
 
@@ -333,18 +331,6 @@ The Expo roster (`data/Roster_L1_L2_2026_Schedule - L2 Expo Team (Mid Oct - Dec)
 Nikhita is the Expo associate (from shift-guardian's mapping); she sees the Expo roster first. Confirm whether there are others.
 
 **Then:** add them to `associates` of the L2 Expo entry in `config.py` `ROSTER_VIEWS`, and to `config/dashboard_users.yaml` if they need access.
-
-### D28. Import shift-guardian's history (PRD Q6)
-*Raised 2026-10-15. Part of release 2 (P1); built only if the owner agrees.*
-
-Importing shift-guardian's shift records and hold alerts would mean our reports don't start empty. Needs shift-guardian's owner to agree and to share an export.
-
-**Until decided:** not built; our reports count from 14 Oct (the trial reset) onwards.
-
-### D29. When to retire shift-guardian (PRD Q7)
-*Raised 2026-10-15.*
-
-Its owner decides (PRD decision 7). **We take no action on retiring it:** we don't change, stop or redirect shift-guardian. Once release 1 has run cleanly for about a week, the user may raise it with the owner.
 
 ---
 
