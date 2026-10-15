@@ -12,11 +12,11 @@ Associates watch engineer behaviour in two separate internal tools: this app (6 
 
 ## 2. Goals
 
-1. **One place:** associates for L2 Full Stack and L2 Expo can see everything shift-guardian's read-only features showed, in this app. All release 1 requirements (section 6) shipped.
+1. **One place:** associates can see everything shift-guardian's read-only features showed, in this app: monitoring for L2 Full Stack, and roster and shift views for L2 Expo. All release 1 requirements (section 6) shipped.
 2. **Accurate new alerts:** at least **80%** of theme 7 and theme 8 alerts are marked *correct* by associates in the dry-run trial (stretch: 90%).
 3. **Engineers go offline on time:** median minutes Online after a shift ends falls by **50%** within 4 weeks of Slack go-live, against the baseline measured in the trial.
 4. **Associates actually use it:** at least **5 of 6** associates open the dashboard every week during the trial.
-5. **Expo covered:** all 12 Expo engineers are monitored with a current roster.
+5. **Expo visible:** all 12 Expo engineers appear in the roster and shift views with a current roster (not monitored).
 
 ## 3. Non-goals
 
@@ -81,7 +81,7 @@ Fires when a monitored engineer was assigned a ticket and later un-assigned **th
 - [ ] One alert per (ticket, engineer, un-assign); the duplicate protection applies.
 
 **R4 · Theme 8: "still assigned 60+ min with no reply to the customer" (A4)**
-Fires when an OPEN ticket assigned to a monitored engineer has had no public reply from a person for **60 minutes** since its latest assignment to them.
+Fires when an OPEN ticket assigned to a monitored engineer **who is on shift** has had no public reply from a person for **60 minutes** since its latest assignment to them (decision 9; off-shift cases belong to theme 5).
 - [ ] Internal notes, AI drafts and System messages don't count as a reply.
 - [ ] A reassignment restarts the timer.
 - [ ] PENDING or CLOSED tickets, and tickets escalated to L1/L3 or tagged `l3_needs_review`, are skipped.
@@ -93,10 +93,10 @@ Alert record, dashboard review (correct / false alarm), and a Slack alert taggin
 **R6 · Off-shift engineers with open tickets (A5)**
 A live dashboard list: each off-shift engineer, their status, shift end, and open tickets as links. Scoped by team and associate. No alert (theme 5's 3-hour alert is unchanged).
 
-**R7 · L2 Expo team (D1)**
-Add the 12 Expo engineers under Nikhita, the Expo roster, and a team switcher in the dashboard. Every theme applies to Expo engineers; the shift themes need their roster. Settles open decision D11 (Nikhita's team).
-- [ ] The switcher changes every view; a person sees their own team first.
-- [ ] Expo roster gaps produce the same "not in the shift roster" warning as today.
+**R7 · L2 Expo team: roster and views only (D1)**
+Load the Expo roster (12 engineers, associate Nikhita; `data/Roster_L1_L2_2026_Schedule - L2 Expo Team (Mid Oct - Dec).csv`, 16 Oct–15 Dec) and show the team in the dashboard's roster and shift views, with a team switcher. **Expo engineers are excluded from the notifier:** no themes, checks, alerts, shift tracking or scorecard (decision 8). Settles open decision D11 (Nikhita's team).
+- [ ] The switcher changes the roster and shift views; a person sees their own team first.
+- [ ] No Expo engineer ever appears in an alert, a check, the activity trace or the scorecard.
 
 **R8 · Reports: counts and daily report (C1, C3)**
 For any date range up to 90 days:
@@ -133,7 +133,7 @@ Read-only background sync: everyone's presence every 60 seconds, and open ticket
 |---|---|---|---|---|
 | Theme 7 and 8 alerts marked *correct* | Leading | ≥80% (stretch 90%) | Dashboard reviews | End of the 2-week trial |
 | Associates opening the dashboard weekly | Leading | ≥5 of 6 | Sign-in sessions | Weekly during the trial |
-| Expo engineers monitored | Leading | 12 of 12 | Team list and roster | Release 1 |
+| Expo engineers in roster and shift views | Leading | 12 of 12 | Roster views | Release 1 |
 | Median minutes Online after shift end | Lagging | −50% vs trial baseline | R1 shift records | 4 weeks after Slack go-live |
 | Engineers rated *Needs attention* | Lagging | Falling month on month | R9 scorecard | Monthly |
 
@@ -141,11 +141,10 @@ Read-only background sync: everyone's presence every 60 seconds, and open ticket
 
 | # | Question | Who | Blocking? |
 |---|---|---|---|
-| Q1 | **Theme 8 vs theme 5:** an off-shift engineer's unreplied ticket can trigger both. Should theme 8 apply only to engineers **on** shift? Recommendation: yes | Product (Prateek) | Yes, for R4 |
+| Q1 | ~~Theme 8 vs theme 5~~ **Decided:** theme 8 applies only to engineers on shift (decision 9) | Product (Prateek) | Resolved |
 | Q2 | Are **30 min** (theme 7) and **60 min** (theme 8) right for our teams? These are shift-guardian's values | Associates | No (configurable) |
-| Q3 | **Expo roster:** which file, and who keeps it current? The current one runs 16 Oct–15 Dec | Roster owner / Nikhita | Yes, for R7 |
-| Q4 | **Expo associates:** is Nikhita the only associate for all 12? | Nikhita | Yes, for R7 |
-| Q5 | **Same Slack channel** for Expo, or their own? | Prateek / Nikhita | No |
+| Q3 | ~~Expo roster~~ **Received 2026-10-15** (16 Oct–15 Dec). Who refreshes it after 15 Dec is still open | Roster owner / Nikhita | No |
+| Q4 | Expo associate: Nikhita (from shift-guardian's mapping); confirm whether there are others | Nikhita | No |
 | Q6 | Can we **import shift-guardian's history** (P1)? | shift-guardian's owner | No |
 | Q7 | **Retirement date** for shift-guardian | shift-guardian's owner | No |
 
@@ -158,6 +157,8 @@ Read-only background sync: everyone's presence every 60 seconds, and open ticket
 5. **Themes 7 and 8 behave like the other themes:** alerts, reviews and Slack, under `DRY_RUN` (R5).
 6. **Scorecard in release 1,** visible to associates and seniors, counting only alerts not marked false alarm (R9).
 7. **shift-guardian's owner decides when it's retired.**
+8. **Expo is roster and views only:** no themes, checks, alerts or scorecard for Expo engineers (R7).
+9. **Theme 8 covers engineers on shift only;** off-shift cases stay with theme 5 (R4).
 
 ## 10. Timeline and phasing
 
