@@ -84,10 +84,22 @@ def test_shifts_page_lists_still_online_and_off_shift_engineers_with_their_ticke
     (row,) = page["still_online"]
     assert row["email"] == A and row["online_minutes"] == 50 and row["alerted"]
     assert row["open_tickets"][0]["url"] == URL.format(id="t1")
-    # A is off shift with a ticket; B is on shift, so not listed.
-    assert [x["email"] for x in page["off_shift_with_tickets"]] == [A]
-    assert page["off_shift_with_tickets"][0]["tickets"][0]["num"] == 11
+    # A is listed once, under still Online (with the ticket); B is on shift, so not listed.
+    assert page["off_shift_with_tickets"] == []
     assert views.shifts(now, team="Someone else's team")["still_online"] == []
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_still_online_engineers_are_not_listed_again_as_off_shift_with_tickets(tmp_path, backend):
+    now = _now()
+    store, _, views = make(tmp_path, backend, now)
+    end = (now - timedelta(minutes=50)).isoformat()
+    store.add_shift_record({"key": f"{A}|{end}", "email": A, "shift_start": (now - timedelta(hours=9)).isoformat(),
+                            "shift_end": end, "status_at_end": "ONLINE", "outcome": "open", "offline_at": None,
+                            "online_minutes": None})
+    store.put_open_tickets(A, [{"ticket_id": "t1", "num": 11, "subject": "One", "level": "L2"}])
+    page = views.shifts(now)
+    assert [r["email"] for r in page["still_online"]] == [A] and page["off_shift_with_tickets"] == []
 
 
 @pytest.mark.parametrize("backend", BACKENDS)

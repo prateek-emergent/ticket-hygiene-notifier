@@ -126,10 +126,12 @@ class ShiftViews:
 
         off_shift = []
         cal = self.calendar(now)
+        listed = {r["email"] for r in still_online}  # already shown, with their tickets, under still Online
         if cal is not None:
             for e, tickets in open_by.items():
                 # Unknown roster cells (a swap) or no roster entry: we don't know they're off shift, so not listed.
-                if not keep(e) or not cal.has_schedule(e) or not cal.is_certain(e, now) or cal.on_shift(e, now):
+                if not keep(e) or e in listed or not cal.has_schedule(e) or not cal.is_certain(e, now) \
+                        or cal.on_shift(e, now):
                     continue
                 ended = cal.last_end_before(e, now)
                 nxt = min((s.start for s in cal.by_email.get(e, []) if s.start > now), default=None)
