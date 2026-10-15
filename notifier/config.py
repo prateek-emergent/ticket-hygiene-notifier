@@ -112,6 +112,8 @@ class Config:
     l3_api_key: str | None = None
     l3_fallback_model: str | None = "claude-opus-5-5"
     l3_min_confidence: str = "medium"
+    held_min: timedelta = timedelta(minutes=30)  # theme 7: held longer than this before dropping it
+    no_reply_after: timedelta = timedelta(minutes=60)  # theme 8: customer waiting this long with no reply
     webhook_host: str = "0.0.0.0"
     webhook_port: int = 8080
     webhook_token: str | None = None
@@ -132,6 +134,7 @@ class Config:
 
         rc = load_rules_config()
         enabled = {Rule(name) for name, on in rc.THEMES.items() if on}
+        holds = {"held_minutes": 30, "no_reply_minutes": 60} | dict(getattr(rc, "HOLDS", {}) or {})
         option, model, model_key = pending_model(rc)
         l3_key = os.getenv("JEV_API_KEY") or None
         for r in (Rule.L3_ESCALATION, Rule.ESCALATION_NOTE):
@@ -160,6 +163,9 @@ class Config:
                 Rule.OVERWATCH_CLOSE: timedelta(minutes=_int("CLOSE_GRACE_MINUTES", 1)),
                 Rule.L3_ESCALATION: timedelta(minutes=rc.L3_ESCALATION["grace_minutes"]),
                 Rule.ESCALATION_NOTE: timedelta(minutes=rc.L3_ESCALATION["grace_minutes"]),
+                # theme 7: 5 min after the un-assign an escalation still counts, so look 6 min later
+                Rule.HELD_THEN_DROPPED: timedelta(minutes=6),
+                Rule.NO_REPLY: timedelta(minutes=holds["no_reply_minutes"]),
             },
             human_domains=tuple(
                 "@" + d.strip().lstrip("@").lower()
@@ -197,6 +203,8 @@ class Config:
             l3_api_key=l3_key,
             l3_fallback_model=rc.L3_ESCALATION.get("fallback_model") or None,
             l3_min_confidence=rc.L3_ESCALATION["min_confidence"],
+            held_min=timedelta(minutes=holds["held_minutes"]),
+            no_reply_after=timedelta(minutes=holds["no_reply_minutes"]),
             webhook_host=os.getenv("WEBHOOK_HOST", "0.0.0.0"),
             webhook_port=_int("WEBHOOK_PORT", 8080),
             webhook_token=os.getenv("WEBHOOK_TOKEN") or None,

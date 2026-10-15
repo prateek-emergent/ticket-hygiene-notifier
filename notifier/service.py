@@ -16,10 +16,13 @@ from .detectors import (
     Rule,
     evaluate_escalation,
     evaluate_escalation_note,
+    evaluate_held_then_dropped,
+    evaluate_no_reply,
     evaluate_overwatch_close,
     evaluate_pending,
     evaluate_reassign,
     find_triggers,
+    trigger_engineer,
 )
 from .kb import CONFIDENCE_ORDER, EscalationJudge, JevEscalationJudge
 from .models import Event, Ticket
@@ -110,6 +113,12 @@ class Monitor:
             finding = evaluate_escalation(events, trigger, self.cfg.grace[rule])
         elif rule == Rule.ESCALATION_NOTE:
             finding = evaluate_escalation_note(events, trigger)
+        elif rule == Rule.HELD_THEN_DROPPED:
+            finding = evaluate_held_then_dropped(events, trigger, self.cfg.held_min)
+        elif rule == Rule.NO_REPLY:
+            finding = evaluate_no_reply(events, trigger, _now(), self.cfg.no_reply_after, self.cfg.is_human)
+            if finding is not None and self.off_shift_now(finding.engineer_email):
+                return None  # theme 8 is for engineers on shift; off-shift cases belong to theme 5
         else:
             raise ValueError(rule)
         # Only engineers listed in teams.yaml are monitored. Checked here rather than earlier because
@@ -117,6 +126,15 @@ class Monitor:
         if finding is not None and not self.directory.is_monitored(finding.engineer_email):
             return None
         return finding
+
+    def off_shift_now(self, email: str) -> bool:
+        """True only when the roster says, with certainty, that `email` is off shift right now."""
+        if self.shift_checks is None:
+            return False
+        now = _now()
+        cal = self.shift_checks.calendar(now)
+        return cal is not None and email.lower() in cal.people and cal.is_certain(email, now) \
+            and not cal.on_shift(email, now)
 
     def awaiting_reply(self, finding: Finding, now: datetime) -> bool:
         """Rule 1 found no reply yet, but the engineer may still be writing it: check again later."""
@@ -131,6 +149,9 @@ class Monitor:
             return await self.resolve_escalation(finding, ticket)
         if finding.needs_rca_check:
             return await self.resolve_rca(finding, ticket)
+        if finding.rule == Rule.NO_REPLY and (ticket.status.upper() != "OPEN"
+                                              or (ticket.assigned_to or "").lower() != finding.engineer_email.lower()):
+            return False, "ok: no longer open, or no longer theirs"
         if finding.rule == Rule.ESCALATION_NOTE:  # MISSING / too short: decided without a judge
             return True, f"flagged: {finding.details.get('verdict', 'MISSING').lower()}"
         if not finding.needs_classification:
@@ -264,10 +285,11 @@ class Monitor:
                 continue
             if last is None and trig.event.created_at < since:
                 continue  # first time we see this ticket: ignore history before we started
-            if trig.rule != Rule.OVERWATCH_CLOSE and not self.directory.is_monitored(trig.event.author_email):
-                continue  # rules 1-2 are about whoever made the change; skip unlisted people up front
+            engineer = trigger_engineer(trig)
+            if trig.rule != Rule.OVERWATCH_CLOSE and not self.directory.is_monitored(engineer):
+                continue  # skip unlisted people up front (theme 3's engineer is only known later)
             due = trig.event.created_at + self.cfg.grace[trig.rule]
-            if self.store.schedule(trig.rule.value, trig.event.id, ticket_id, due, trig.event.author_email):
+            if self.store.schedule(trig.rule.value, trig.event.id, ticket_id, due, engineer):
                 grace = int(self.cfg.grace[trig.rule].total_seconds() // 60)
                 self.trace("scheduled", f"{trig.event.author or 'Someone'}: {_event_line(trig.event)}; checking after "
                            f"a {grace}-minute grace period", rule=trig.rule.value, trigger_event_id=trig.event.id,
@@ -304,6 +326,13 @@ class Monitor:
                     self.store.finish_check(rule_value, event_id, "clean")
                     self.trace("check", "Clean: nothing to flag", outcome="clean",
                                engineer=trigger.author_email if trigger else None, **ids)
+                    continue
+                if finding.details.get("recheck_at"):  # theme 8: the customer is waiting, not long enough yet
+                    again = datetime.fromisoformat(finding.details["recheck_at"])
+                    self.store.reschedule(rule_value, event_id, again)
+                    self.trace("recheck", f"Customer waiting {finding.details.get('waited_minutes', 0)} min; "
+                               f"looking again at {again:%H:%M} UTC", outcome="waiting",
+                               engineer=finding.engineer_email, **ids)
                     continue
                 if self.awaiting_reply(finding, _now()):
                     self.store.reschedule(rule_value, event_id, _now() + RECHECK_AFTER)
@@ -423,6 +452,9 @@ class Monitor:
             finding = self.evaluate(events, trig.event, trig.rule)
             if finding is None:
                 lines.append((trig.rule.value, "clean", f"{trig.rule.value} @{trig.event.created_at:%Y-%m-%d %H:%M} by {trig.event.author}: clean", trig.event.author_email or ""))
+                continue
+            if finding.details.get("recheck_at"):
+                lines.append((trig.rule.value, "in-grace", f"{trig.rule.value} @{trig.event.created_at:%H:%M}: customer waiting, not 60 min yet", finding.engineer_email))
                 continue
             if self.awaiting_reply(finding, _now()):
                 lines.append((trig.rule.value, "in-grace", f"{trig.rule.value} @{trig.event.created_at:%H:%M}: no reply yet, still within the reply window", finding.engineer_email))

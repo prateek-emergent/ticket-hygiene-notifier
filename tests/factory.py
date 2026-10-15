@@ -67,6 +67,17 @@ class Timeline:
         return self._add(m, action="unassigned", old_value=old, new_value=None, author=by.split("@")[0].title(),
                          author_email=by)
 
+    def note(self, m, who, body="Checked the logs; handing over."):
+        return self._add(m, type="note", visibility="internal", body=body, author=who.split("@")[0].title(),
+                         author_email=who)
+
+    def level(self, m, old, new, who=None):
+        return self._add(m, action="level_changed", old_value=old, new_value=new,
+                         author=who.split("@")[0].title() if who else "System", author_email=who)
+
+    def tag(self, m, tag, who):
+        return self._add(m, action="tag_added", new_value=tag, author=who.split("@")[0].title(), author_email=who)
+
     def events(self) -> list[Event]:
         return [Event.from_api(r) for r in self.raw]
 

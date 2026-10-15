@@ -29,6 +29,8 @@ class Rule(str, Enum):
     OFF_SHIFT_HOLD = "ticket_held_off_shift"
     L3_ESCALATION = "l3_escalation_check"
     ESCALATION_NOTE = "escalation_note_quality"
+    HELD_THEN_DROPPED = "held_then_unassigned"
+    NO_REPLY = "assigned_without_reply"
 
 
 RULE_TITLES = {
@@ -39,11 +41,13 @@ RULE_TITLES = {
     Rule.OFF_SHIFT_HOLD: "Customer waiting on a ticket held by an off-shift engineer",
     Rule.L3_ESCALATION: "L3 escalation the knowledge base says L2 could handle",
     Rule.ESCALATION_NOTE: "L3 escalation with a missing or vague RCA note",
+    Rule.HELD_THEN_DROPPED: "Held a ticket 30+ min, then un-assigned it without escalating",
+    Rule.NO_REPLY: "Customer waiting 60+ min on an assigned ticket with no reply",
 }
 
 # Rules triggered by a ticket timeline event. Rules 4-5 run on a schedule instead (notifier/shift_checks.py).
 EVENT_RULES = {Rule.PENDING_NO_QUESTION, Rule.SELF_REASSIGN, Rule.OVERWATCH_CLOSE, Rule.L3_ESCALATION,
-               Rule.ESCALATION_NOTE}
+               Rule.ESCALATION_NOTE, Rule.HELD_THEN_DROPPED, Rule.NO_REPLY}
 
 # One escalation is often several audit events in the same minute (level -> L3, tag l3_needs_review, unassign).
 # Events by the same engineer within this window are one escalation.
@@ -124,7 +128,19 @@ def find_triggers(events: Iterable[Event], is_human: IsHuman) -> list[Trigger]:
                 and not _same(e.old_value, e.new_value)
             ):
                 triggers.append(Trigger(Rule.SELF_REASSIGN, e))
+            if is_human(e.new_value):
+                # Theme 8: any assignment to an engineer, whoever made it; judged 60 min later.
+                triggers.append(Trigger(Rule.NO_REPLY, e))
+        elif e.action == "unassigned":
+            if is_human(e.author_email) and _same(e.author_email, e.old_value):
+                # Theme 7: an engineer dropping their own ticket.
+                triggers.append(Trigger(Rule.HELD_THEN_DROPPED, e))
     return triggers
+
+
+def trigger_engineer(trigger: Trigger) -> str | None:
+    """Whose behaviour a trigger is about: the assignee for theme 8, otherwise whoever made the change."""
+    return trigger.event.new_value if trigger.rule == Rule.NO_REPLY else trigger.event.author_email
 
 
 # --- Rule 1: Pending without an open question ------------------------------------------------
@@ -440,3 +456,109 @@ def evaluate_escalation_note(events: list[Event], trigger: Event) -> Finding | N
         return Finding(reason=f"Escalation note too short to carry the required fields: \"{text[:79]}\"",
                        details={**details, "verdict": "VAGUE", "note": text}, **base)
     return Finding(reason="", needs_rca_check=True, details={**details, "note": text}, **base)
+
+
+# --- Themes 7-8 (from shift-guardian): holding and replying -----------------------------------
+
+ESCALATED_LEVELS = ("L1", "L3")
+DROP_ESCALATION_AFTER = timedelta(minutes=5)  # an escalation this soon after the un-assign still counts
+
+
+def _level_before(events: list[Event], seq: int) -> str | None:
+    level = None
+    for e in events:
+        if e.seq >= seq:
+            break
+        if e.type == "audit" and e.action == "level_changed":
+            level = e.new_value
+    return level
+
+
+def _escalated_between(events: list[Event], start, end) -> bool:
+    """Moved to L1/L3, or tagged for L3 review, between `start` and `end` (datetimes)."""
+    for e in events:
+        if e.type != "audit" or not (start <= e.created_at <= end):
+            continue
+        if e.action == "level_changed" and e.new_value in ESCALATED_LEVELS:
+            return True
+        if e.action == "tag_added" and e.new_value in ESCALATION_TAGS:
+            return True
+    return False
+
+
+def evaluate_held_then_dropped(events: list[Event], trigger: Event, min_hold: timedelta) -> Finding | None:
+    """Theme 7: the engineer held the ticket longer than `min_hold`, then un-assigned themselves without
+    escalating. Reports whether they left their own internal note while holding it."""
+    engineer = trigger.author_email
+    picked = None
+    for e in events:
+        if e.seq >= trigger.seq:
+            break
+        if e.type == "audit" and e.action == "assigned" and _same(e.new_value, engineer):
+            picked = e
+    if picked is None:
+        return None
+    held = trigger.created_at - picked.created_at
+    if held <= min_hold:
+        return None
+    if _level_before(events, picked.seq) in ESCALATED_LEVELS:
+        return None  # it was already an L1/L3 ticket when they took it
+    window_end = trigger.created_at + DROP_ESCALATION_AFTER
+    if _escalated_between(events, picked.created_at, window_end):
+        return None
+    left_note = any(e.type == "note" and _same(e.author_email, engineer)
+                    and picked.created_at <= e.created_at <= window_end for e in events)
+    minutes = int(held.total_seconds() // 60)
+    return Finding(
+        rule=Rule.HELD_THEN_DROPPED,
+        ticket_id=trigger.ticket_id,
+        trigger_event_id=trigger.id,
+        engineer_email=engineer or "",
+        engineer_name=trigger.author,
+        reason=(f"Held the ticket {minutes} min, then un-assigned it without escalating"
+                + ("." if left_note else ", and left no internal note.")),
+        details={"held_minutes": minutes, "picked_up_at": picked.created_at.isoformat(),
+                 "unassigned_at": trigger.created_at.isoformat(), "left_note": left_note},
+    )
+
+
+def evaluate_no_reply(events: list[Event], trigger: Event, now, threshold: timedelta, is_human: IsHuman) -> Finding | None:
+    """Theme 8: since this assignment the customer has waited `threshold` with no reply from a person.
+    The wait counts from the later of the assignment and the customer's oldest unanswered message. When the
+    customer is waiting but not yet for `threshold`, returns a finding with details["recheck_at"]."""
+    engineer = trigger.new_value
+    later = [e for e in events if e.seq > trigger.seq and e.created_at <= now]
+    if any(e.type == "audit" and e.action in ("assigned", "unassigned") for e in later):
+        return None  # reassigned or dropped: a new assignment has its own check
+    if _level_before(events, trigger.seq + 1) in ESCALATED_LEVELS or _escalated_between(events, trigger.created_at, now):
+        return None
+    status = None
+    for e in events:
+        if e.created_at <= now and e.type == "audit" and e.action == "status_changed":
+            status = e.new_value
+    if status in ("PENDING", "CLOSED"):
+        return None
+    if any(e.is_outbound_message and is_human(e.author_email) for e in later):
+        return None  # a person replied
+    replies = [e for e in events if e.created_at <= now and e.is_outbound_message and not e.is_system_notice]
+    last_reply_at = max((e.created_at for e in replies), default=None)
+    unanswered = [e for e in events if e.created_at <= now and e.is_customer_message
+                  and (last_reply_at is None or e.created_at > last_reply_at)]
+    if not unanswered:
+        return None  # the customer isn't waiting on us
+    waiting_since = max(trigger.created_at, min(e.created_at for e in unanswered))
+    waited = now - waiting_since
+    finding = Finding(
+        rule=Rule.NO_REPLY,
+        ticket_id=trigger.ticket_id,
+        trigger_event_id=trigger.id,
+        engineer_email=engineer or "",
+        engineer_name=None,
+        reason=(f"Assigned {int((now - trigger.created_at).total_seconds() // 60)} min ago; the customer has "
+                f"waited {int(waited.total_seconds() // 60)} min with no reply."),
+        details={"assigned_at": trigger.created_at.isoformat(), "waiting_since": waiting_since.isoformat(),
+                 "waited_minutes": int(waited.total_seconds() // 60)},
+    )
+    if waited < threshold:
+        finding.details["recheck_at"] = (waiting_since + threshold).isoformat()
+    return finding

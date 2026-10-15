@@ -118,13 +118,13 @@ def test_activity_trace_records_the_whole_check(tmp_path):
     db = monitor.store.db
     kinds = [r[0] for r in db.execute("SELECT kind FROM activity WHERE rule='pending_without_open_question' ORDER BY id")]
     assert kinds == ["scheduled", "model", "alert", "check"]
-    assert db.execute("SELECT outcome FROM activity WHERE kind='check'").fetchone()[0] == "flagged"
+    assert db.execute("SELECT outcome FROM activity WHERE kind='check' AND rule='pending_without_open_question'").fetchone()[0] == "flagged"
     assert {r[0] for r in db.execute("SELECT kind FROM activity")} >= {"start", "cycle"}
     num, subject, associates, url, dry = db.execute(
         "SELECT ticket_num, subject, associates, url, dry_run FROM alerts").fetchone()
     assert json.loads(associates) == ["lead@emergent.sh"] and url == "https://trinity/tickets/tk" and dry == 1
     assert monitor.store.get("heartbeat") and json.loads(monitor.store.get("notifier_info"))["mode"] == "test"
-    engineer, finished = db.execute("SELECT engineer, finished_at FROM checks").fetchone()
+    engineer, finished = db.execute("SELECT engineer, finished_at FROM checks WHERE rule='pending_without_open_question'").fetchone()
     assert engineer == KRISHNA and finished
 
 

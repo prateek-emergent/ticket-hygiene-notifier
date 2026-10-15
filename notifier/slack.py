@@ -22,6 +22,8 @@ RULE_EMOJI = {
     Rule.OFF_SHIFT_HOLD: ":zzz:",
     Rule.L3_ESCALATION: ":arrow_double_up:",
     Rule.ESCALATION_NOTE: ":memo:",
+    Rule.HELD_THEN_DROPPED: ":leftwards_arrow_with_hook:",
+    Rule.NO_REPLY: ":speech_balloon:",
 }
 
 EXCERPT_CHARS = 600
@@ -73,6 +75,11 @@ def build_message(
     if finding.rule == Rule.ESCALATION_NOTE:
         fields.append(f"*Note:* {finding.details.get('verdict', 'MISSING').title()}"
                       + (f" · judged by {finding.details['judged_by']}" if finding.details.get("judged_by") else ""))
+    if finding.rule == Rule.HELD_THEN_DROPPED:
+        fields.append(f"*Held for:* {_duration(finding.details.get('held_minutes'))} · "
+                      f"*Note left:* {'yes' if finding.details.get('left_note') else 'no'}")
+    if finding.rule == Rule.NO_REPLY:
+        fields.append(f"*Customer waiting:* {_duration(finding.details.get('waited_minutes'))}")
     if finding.rule == Rule.L3_ESCALATION:
         fields.append(f"*Knowledge base:* {finding.details.get('kb_reference') or '-'}")
         if finding.details.get("judged_by"):

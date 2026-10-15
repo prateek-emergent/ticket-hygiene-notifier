@@ -26,6 +26,18 @@ THEMES = {
     #    cause and no exact ask, or a cause with no evidence. MISSING is flagged by code; the rest by Jev.
     #    Standard: kb/escalation/reference/rca-standard.md.
     "escalation_note_quality": True,
+    # Theme 7 (from shift-guardian). An engineer held a ticket 30+ min, then un-assigned it themselves without
+    #    escalating (no move to L1/L3 or l3_needs_review up to 5 min after). Says whether they left a note.
+    "held_then_unassigned": True,
+    # Theme 8 (from shift-guardian). A customer has waited 60+ min, since the ticket was assigned to an
+    #    engineer who is on shift, with no reply from a person. Off-shift cases are theme 5.
+    "assigned_without_reply": True,
+}
+
+# --- Themes 7 and 8: holding and replying ----------------------------------------------------
+HOLDS = {
+    "held_minutes": 30,  # theme 7: held longer than this, then dropped
+    "no_reply_minutes": 60,  # theme 8: customer waiting this long with no reply
 }
 
 # Jev (TypeSafe's decision model) through Emergent's LiteLLM. The main model everywhere: theme 1 (option B)
