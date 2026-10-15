@@ -1,0 +1,2 @@
+Source: https://github.com/julianoczkowski/designer-skills (information-architecture), Apache-2.0.
+Copied unmodified on 2026-10-15.
