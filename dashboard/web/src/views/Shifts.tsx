@@ -145,7 +145,8 @@ export function ShiftsView() {
         )}
       </section>
 
-      <div className="panes" style={{ padding: 0, gridTemplateColumns: "1.5fr 1fr" }}>
+      {/* The week grid needs the full width; the side boxes then sit below it, side by side. */}
+      <div className="panes" style={{ padding: 0, gridTemplateColumns: mode === "week" ? "minmax(0, 1fr)" : "minmax(0, 1.5fr) minmax(0, 1fr)" }}>
         <section className="glass pane" aria-labelledby="roster">
           <div className="pane-head">
             <h3 id="roster">{mode === "week" ? "Roster, next 7 days" : "Today's roster"}</h3>
@@ -182,7 +183,7 @@ export function ShiftsView() {
           )}
           </>)}
         </section>
-        <div style={{ display: "grid", gap: 20, alignContent: "start" }}>
+        <div style={{ display: "grid", gap: 20, alignContent: "start", gridTemplateColumns: mode === "week" ? "repeat(auto-fit, minmax(320px, 1fr))" : undefined }}>
         <section className="glass pane" aria-labelledby="ends">
           <div className="pane-head"><h3 id="ends">Shift ends, last 24 h</h3><span className="aside">on time not shown</span></div>
           {d.recent_ends.length === 0 ? <Empty title="Everyone went Offline on time." /> : (

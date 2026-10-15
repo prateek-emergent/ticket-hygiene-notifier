@@ -1,9 +1,9 @@
 // Release 2 pieces of the Shifts page: per-associate team cards, "Mark actioned" (recorded in our app only,
 // nothing changes in Trinity), and the week grid of a roster.
-import { Check } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { api, ApiError, type Action, type TeamCard, type Week } from "../api";
-import { ago, useData } from "../lib";
+import { ago, isoDay, useData } from "../lib";
 import { Empty, Failed, Loading } from "./Common";
 
 export function TeamCards({ cards, onPick }: { cards: TeamCard[]; onPick?: (team: string) => void }) {
@@ -93,23 +93,38 @@ const CELL_STYLE: Record<string, React.CSSProperties> = {
 };
 const dayLabel = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" });
 
-/** One week of a roster, as written in its file: a row per person, a column per day. */
+const rangeFmt = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" });
+
+/** Seven days of a roster, as written in its file: a row per person, a column per day. The arrows move a week
+ * at a time; the first page starts today. */
 export function WeekGrid({ roster, team, onRoster }: { roster: string | null; team: string | null; onRoster: (r: string) => void }) {
-  const { data, error, loading, reload } = useData(() => api.week(roster, team), [roster, team]);
+  const [offset, setOffset] = useState(0); // weeks from today
+  const start = isoDay(new Date(Date.now() + offset * 7 * 86_400_000));
+  const { data, error, loading, reload } = useData(() => api.week(roster, team, start), [roster, team, start]);
   if (loading && !data) return <Loading lines={6} />;
   if (error && !data) return <Failed error={error} retry={reload} />;
   const w: Week = data!;
-  const today = w.days[0];
+  const today = isoDay(new Date());
+  const first = w.days[0], last = w.days[w.days.length - 1];
+  const covered = w.people.some((p) => p.cells.some((c) => c.kind !== "none"));
   return (
     <>
-      {w.views.length > 1 && (
-        <div style={{ marginBottom: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+        {w.views.length > 1 && (
           <select className="select" value={w.name ?? ""} onChange={(e) => onRoster(e.target.value)} aria-label="Roster">
             {w.views.map((v) => <option key={v} value={v}>{v}</option>)}
           </select>
-        </div>
-      )}
+        )}
+        <span className="grow" style={{ flex: 1 }} />
+        <button className="iconbtn" onClick={() => setOffset((o) => o - 1)} aria-label="Previous week" title="Previous week"><ChevronLeft size={16} /></button>
+        <span style={{ fontSize: 13, minWidth: 130, textAlign: "center" }} aria-live="polite">
+          {first && `${rangeFmt.format(new Date(`${first}T12:00:00`))} – ${rangeFmt.format(new Date(`${last}T12:00:00`))}`}
+        </span>
+        <button className="iconbtn" onClick={() => setOffset((o) => o + 1)} aria-label="Next week" title="Next week"><ChevronRight size={16} /></button>
+        <button className="chip" onClick={() => setOffset(0)} disabled={offset === 0}>From today</button>
+      </div>
       {w.roster_only && <p className="faint" style={{ fontSize: 12, margin: "0 0 6px" }}>Roster only: this team isn't monitored by the notifier.</p>}
+      {!covered && w.people.length > 0 && <p className="faint" style={{ fontSize: 12, margin: "0 0 6px" }}>The roster file doesn't cover these days. A new roster is needed (pending decisions D6, D26).</p>}
       {w.people.length === 0 ? <Empty title="Nobody on this roster this week." /> : (
         <div className="table-wrap">
           <table className="table">
