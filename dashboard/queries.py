@@ -1,7 +1,7 @@
 """Every read and write the dashboard makes, in one place (the storage boundary).
 
-The notifier writes the state (notifier/store.py); the dashboard reads it and adds its own two tables:
-feedback on alerts, and sign-in sessions.
+The notifier writes the state (notifier/store.py); the dashboard reads it and adds its own tables: feedback on
+alerts, sign-in sessions, and actions associates record on the Shifts page ("Mark actioned", in our app only).
 
 Two backends share one interface (same method names, same return shapes), chosen by the environment:
 - SQLite (default): opens the notifier's state.db. Used for local runs and the tests.
@@ -34,6 +34,18 @@ CREATE TABLE IF NOT EXISTS feedback (
     at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS feedback_alert ON feedback (rule, trigger_event_id);
+-- "Mark actioned" on the Shifts page: an associate dealt with an engineer still Online after shift or holding
+-- tickets off shift. Recorded here only; nothing is changed in Trinity.
+CREATE TABLE IF NOT EXISTS actions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    engineer TEXT NOT NULL,
+    context TEXT NOT NULL,       -- still_online | off_shift
+    tickets TEXT,                -- JSON [{"ticket_id", "num"}] as listed when it was marked
+    note TEXT,
+    by_email TEXT NOT NULL,
+    at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS actions_at ON actions (at);
 CREATE TABLE IF NOT EXISTS dashboard_sessions (
     token_hash TEXT PRIMARY KEY,
     email TEXT NOT NULL,
@@ -45,6 +57,7 @@ CREATE TABLE IF NOT EXISTS dashboard_sessions (
 """
 
 VERDICTS = ("correct", "false_alarm")
+ACTION_CONTEXTS = ("still_online", "off_shift")
 LIVE_WITHIN = timedelta(minutes=3)  # notifier heartbeat older than this: shown as not running
 RULE_ORDER = [r.value for r in Rule]
 
@@ -152,6 +165,23 @@ class _BaseData:
                 "engineer": (r["engineer"] or "").lower(), "sent_at": r["sent_at"], "url": r["url"],
                 "details": payload.get("details") or payload,
                 "false_alarm": bool(review and review["verdict"] == "false_alarm")}
+
+    def _check_action(self, engineer: str, context: str, tickets: list[dict]) -> tuple[str, list[dict]]:
+        engineer = (engineer or "").strip().lower()
+        if engineer not in self.team_of:
+            raise ValueError("not a monitored engineer")
+        if context not in ACTION_CONTEXTS:
+            raise ValueError(f"context must be one of {', '.join(ACTION_CONTEXTS)}")
+        clean = [{"ticket_id": str(t["ticket_id"])[:64], "num": t.get("num") if isinstance(t.get("num"), int) else None}
+                 for t in (tickets or [])[:50] if isinstance(t, dict) and t.get("ticket_id")]
+        return engineer, clean
+
+    def _action_row(self, r) -> dict:
+        tickets = r["tickets"]
+        return {"id": r["id"], "engineer": r["engineer"], "engineer_name": self.name(r["engineer"]),
+                "team": self.team_of.get(r["engineer"]), "context": r["context"],
+                "tickets": (_json(tickets) if isinstance(tickets, str) else tickets) or [], "note": r["note"],
+                "by": r["by_email"], "by_name": self.name(r["by_email"]), "at": r["at"]}
 
     def _activity_row(self, r, nums: dict[str, int] | None = None) -> dict:
         return {
@@ -479,6 +509,36 @@ class SqliteData(_BaseData):
                             "last_activity": last_seen.get(k)})
         out.sort(key=lambda x: (-x["alerts"], x["name"] or ""))
         return out
+
+    # --- actions ("Mark actioned") ------------------------------------------------------------
+
+    def add_action(self, engineer: str, context: str, tickets: list[dict], note: str | None, by_email: str) -> dict:
+        engineer, tickets = self._check_action(engineer, context, tickets)
+        cur = self.db.execute(
+            "INSERT INTO actions (engineer, context, tickets, note, by_email, at) VALUES (?,?,?,?,?,?)",
+            (engineer, context, json.dumps(tickets), (note or "").strip()[:2000] or None, by_email.lower(), _iso(_now())))
+        self.db.commit()
+        return self._action_row(self.db.execute("SELECT * FROM actions WHERE id=?", (cur.lastrowid,)).fetchone())
+
+    def actions(self, since: str, until: str | None = None) -> list[dict]:
+        rows = self.db.execute("SELECT * FROM actions WHERE at>=? AND at<? ORDER BY at DESC",
+                               (since, until or "9999"))
+        return [self._action_row(r) for r in rows]
+
+    def feedback_rows(self, since: str, until: str) -> list[dict]:
+        """Every review given in [since, until), with its alert: for the reviews export."""
+        rows = self.db.execute(
+            "SELECT f.*, a.rowid AS alert_id, a.ticket_num, a.subject, a.engineer, a.url FROM feedback f "
+            "LEFT JOIN alerts a ON a.rule=f.rule AND a.trigger_event_id=f.trigger_event_id "
+            "WHERE f.at>=? AND f.at<? ORDER BY f.at", (since, until))
+        return [dict(r) for r in rows]
+
+    def alert_rows(self, since: str, until: str) -> list[dict]:
+        """Alerts sent in [since, until), shaped as the Alerts page shows them: for the alerts export."""
+        fb = self._latest_feedback()
+        rows = self.db.execute("SELECT rowid, * FROM alerts WHERE sent_at>=? AND sent_at<? ORDER BY sent_at",
+                               (since, until))
+        return [self._alert_row(r, fb) for r in rows]
 
     # --- sessions -----------------------------------------------------------------------------
 
@@ -811,6 +871,32 @@ class MongoData(_BaseData):
                             "last_activity": last_seen.get(k)})
         out.sort(key=lambda x: (-x["alerts"], x["name"] or ""))
         return out
+
+    # --- actions ("Mark actioned") ------------------------------------------------------------
+
+    def add_action(self, engineer: str, context: str, tickets: list[dict], note: str | None, by_email: str) -> dict:
+        engineer, tickets = self._check_action(engineer, context, tickets)
+        doc = {"id": next_id(self.db, "actions"), "engineer": engineer, "context": context, "tickets": tickets,
+               "note": (note or "").strip()[:2000] or None, "by_email": by_email.lower(), "at": _iso(_now())}
+        self.db.actions.insert_one(dict(doc))
+        return self._action_row(doc)
+
+    def actions(self, since: str, until: str | None = None) -> list[dict]:
+        docs = self.db.actions.find({"at": {"$gte": since, "$lt": until or "9999"}}, {"_id": 0}).sort("at", -1)
+        return [self._action_row(d) for d in docs]
+
+    def feedback_rows(self, since: str, until: str) -> list[dict]:
+        out = []
+        for f in self.db.feedback.find({"at": {"$gte": since, "$lt": until}}, {"_id": 0}).sort("at", 1):
+            a = self.db.alerts.find_one({"rule": f["rule"], "trigger_event_id": f["trigger_event_id"]}, {"_id": 0}) or {}
+            out.append({**f, "alert_id": a.get("id"), "ticket_num": a.get("ticket_num"), "subject": a.get("subject"),
+                        "engineer": a.get("engineer"), "url": a.get("url")})
+        return out
+
+    def alert_rows(self, since: str, until: str) -> list[dict]:
+        fb = self._latest_feedback()
+        docs = self.db.alerts.find({"sent_at": {"$gte": since, "$lt": until}}, {"_id": 0}).sort("sent_at", 1)
+        return [self._alert_row(self._alert_doc(d), fb) for d in docs]
 
     # --- sessions -----------------------------------------------------------------------------
 

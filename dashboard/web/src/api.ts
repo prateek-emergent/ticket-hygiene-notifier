@@ -71,11 +71,28 @@ export interface RosterPerson {
   monitored: boolean; presence: string | null;
 }
 
+export interface Action {
+  id: number; engineer: string; engineer_name: string; team: string | null; context: "still_online" | "off_shift";
+  tickets: { ticket_id: string; num: number | null }[]; note: string | null; by: string; by_name: string; at: string;
+}
+
+export interface TeamCard {
+  name: string; associates: string[]; engineers: number; on_shift: number; online: number;
+  on_shift_not_online: PersonRef[]; still_online: number; off_shift_with_tickets: number; open_tickets: number; alerts_today: number;
+}
+
+export interface Week {
+  views: string[]; name: string | null; start?: string; days: string[]; roster_only?: boolean;
+  people: { email: string; name: string; role: string; monitored: boolean; cells: { code: string; kind: RosterPerson["state"] | "shift" }[] }[];
+}
+
 export interface Shifts {
   now: string; timezone: string; team: string | null;
-  still_online: (PersonRef & { shift_start: string; shift_end: string; online_minutes: number; presence: string | null; alerted: boolean; open_tickets: TicketLink[] })[];
+  teams: TeamCard[];
+  actions: Action[];
+  still_online: (PersonRef & { shift_start: string; shift_end: string; online_minutes: number; presence: string | null; alerted: boolean; open_tickets: TicketLink[]; action: Action | null })[];
   recent_ends: (PersonRef & { shift_end: string; outcome: string; online_minutes: number | null; offline_at: string | null })[];
-  off_shift_with_tickets: (PersonRef & { presence: string | null; tickets: TicketLink[]; shift_ended: string | null; next_shift: string | null })[];
+  off_shift_with_tickets: (PersonRef & { presence: string | null; tickets: TicketLink[]; shift_ended: string | null; next_shift: string | null; action: Action | null })[];
   roster: { views: string[]; name: string | null; day?: string; people: RosterPerson[]; roster_only?: boolean };
   synced: { presence: string | null; open_tickets: string | null };
   run_check: RunState;
@@ -145,6 +162,10 @@ export const api = {
   engineers: (hours: number, team: string | null) => request<Engineer[]>(`/api/engineers${qs({ hours, team })}`),
   shifts: (team: string | null, roster: string | null) => request<Shifts>(`/api/shifts${qs({ team, roster })}`),
   reports: (f: { from?: string; to?: string; day?: string; team?: string | null }) => request<Reports>(`/api/reports${qs(f)}`),
+  week: (roster: string | null, team: string | null, start?: string) => request<Week>(`/api/roster/week${qs({ roster, team, start })}`),
+  addAction: (a: { engineer: string; context: Action["context"]; tickets: { ticket_id: string; num: number | null }[]; note: string }) => post<Action>("/api/actions", a),
+  /** A download link (the browser sends the session cookie). */
+  exportUrl: (kind: "alerts" | "reviews" | "report" | "actions", f: { from?: string; to?: string; team?: string | null }) => `/api/export/${kind}.csv${qs(f)}`,
   runState: () => request<RunState>("/api/checks/run"),
   runCheck: () => post<RunState>("/api/checks/run", {}),
 };

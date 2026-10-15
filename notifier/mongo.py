@@ -59,13 +59,15 @@ def ensure_indexes(db) -> None:
     db.feedback.create_index("id", unique=True)
 
     db.dashboard_sessions.create_index("token_hash", unique=True)
+    db.actions.create_index("at")
+    db.actions.create_index("id", unique=True)
     db.open_tickets.create_index("assignee")
     db.shift_records.create_index("shift_end")
     db.shift_records.create_index("outcome")
 
     # Raise each id counter to at least the highest id in use, so a lost or stale _counters document can't
     # hand out an id that already exists.
-    for name in ("alerts", "activity", "feedback"):
+    for name in ("alerts", "activity", "feedback", "actions"):
         top = db[name].find_one({"id": {"$ne": None}}, sort=[("id", -1)], projection={"id": 1})
         if top is not None:
             db["_counters"].update_one({"_id": name}, {"$max": {"seq": top["id"]}}, upsert=True)

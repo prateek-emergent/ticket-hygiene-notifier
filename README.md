@@ -143,6 +143,12 @@ The dashboard is the observability UI for associates. It reads the notifier's `s
 - **Team**: each team's numbers, the scorecard (offline after shift ×3, un-assigned without a note ×2, other self-un-assignments ×1, +5 for a repeated pattern; false alarms never count), heavy days, repeated tickets, and a daily report;
 - **System**: the notifier's health, and **Run check now** (the notifier runs a cycle within seconds instead of waiting for the next poll).
 
+Release 2 added:
+- **Team cards** on the Shifts page, one per associate's team: on shift now, on shift but not Online, still Online after shift, off shift with tickets, alerts today.
+- **Mark actioned** on the Shifts page's two lists: an associate notes what they did (e.g. "reassigned to Bala"). Recorded in this app only; nothing changes in Trinity.
+- **Week grid**: the roster's next 7 days, as written in the file (Today / Week switch).
+- **Export CSV**: alerts (with their review) on the Alerts page; the report and the reviews on the Team page; actions on the Shifts page. Spreadsheet formulas in cells are neutralised.
+
 Shifts and reports read the notifier's copy of Trinity data (presence every minute, open tickets every 5 minutes), never Trinity itself.
 
 Associates mark alerts correct or false alarm there. It never writes to Trinity.

@@ -273,3 +273,17 @@ def roster_day(path: str | Path, tz_name: str, day: date) -> list[dict]:
                     "kind": "shift" if start else "none" if not cell else "off" if parsed is None else "unknown",
                     "start": start, "end": end})
     return out
+
+
+def roster_week(path: str | Path, tz_name: str, start: date, days: int = 7) -> list[dict]:
+    """Everyone in a roster grid file over `days` local days from `start`: name, email, role and one cell per day
+    ({"code", "kind", "start", "end"}), for the dashboard's week grid."""
+    people: dict[str, dict] = {}
+    for i in range(days):
+        for r in roster_day(path, tz_name, start + timedelta(days=i)):
+            p = people.setdefault(r["email"], {"email": r["email"], "name": r["name"], "role": r["role"],
+                                               "cells": [None] * days})
+            p["cells"][i] = {"code": r["code"], "kind": r["kind"], "start": r["start"], "end": r["end"]}
+    for p in people.values():
+        p["cells"] = [c or {"code": "", "kind": "none", "start": None, "end": None} for c in p["cells"]]
+    return list(people.values())

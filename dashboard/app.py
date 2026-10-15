@@ -1,7 +1,8 @@
 """The dashboard's HTTP server: JSON API, live stream (server-sent events), sign-in, and the built UI.
 
 Read-only on everything the notifier does; the only writes are associates' feedback on alerts, sign-in
-sessions, and a "Run check now" request for the notifier (dashboard/shiftviews.py).
+sessions, "Mark actioned" notes on the Shifts page, and a "Run check now" request for the notifier
+(dashboard/shiftviews.py).
 """
 
 from __future__ import annotations
@@ -99,6 +100,9 @@ class Dashboard:
         r.add_get("/api/engineers", self.engineers)
         r.add_get("/api/shifts", self.shifts)
         r.add_get("/api/reports", self.reports)
+        r.add_get("/api/roster/week", self.roster_week)
+        r.add_post("/api/actions", self.add_action)
+        r.add_get("/api/export/{kind}", self.export)
         r.add_get("/api/checks/run", self.run_state)
         r.add_post("/api/checks/run", self.run_check)
         r.add_get("/api/stream", self.stream)
@@ -274,6 +278,36 @@ class Dashboard:
         return web.json_response(self._views().reports(datetime.now(timezone.utc), _date(q.get("from")),
                                                        _date(q.get("to")), _date(q.get("day")),
                                                        q.get("team") or None))
+
+    async def roster_week(self, request: web.Request) -> web.Response:
+        q = request.query
+        return web.json_response(self._views().week(datetime.now(timezone.utc), q.get("roster") or None,
+                                                    request[USER]["email"], _date(q.get("start")),
+                                                    q.get("team") or None))
+
+    async def add_action(self, request: web.Request) -> web.Response:
+        body = await request.json()
+        tickets = body.get("tickets") if isinstance(body.get("tickets"), list) else []
+        try:
+            a = self.data.add_action(str(body.get("engineer", "")), str(body.get("context", "")), tickets,
+                                     body.get("note") if isinstance(body.get("note"), str) else None,
+                                     request[USER]["email"])
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=400)
+        log.info("marked actioned by %s: %s (%s)", request[USER]["email"], a["engineer"], a["context"])
+        return web.json_response(a)
+
+    async def export(self, request: web.Request) -> web.Response:
+        q = request.query
+        kind = request.match_info["kind"].removesuffix(".csv")
+        try:
+            name, text = self._views().export(kind, datetime.now(timezone.utc), _date(q.get("from")),
+                                              _date(q.get("to")), q.get("team") or None)
+        except ValueError as e:
+            return web.json_response({"error": str(e)}, status=404)
+        log.info("export %s by %s", name, request[USER]["email"])
+        return web.Response(text="\ufeff" + text, content_type="text/csv", charset="utf-8",
+                            headers={"Content-Disposition": f'attachment; filename="{name}"'})
 
     async def run_state(self, request: web.Request) -> web.Response:
         return web.json_response(self._views().run_state())

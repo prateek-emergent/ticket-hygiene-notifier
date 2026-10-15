@@ -2,11 +2,12 @@
 // daily report for one day. Alerts marked false alarm never count here.
 import { useState } from "react";
 import { api, type Reports } from "../api";
-import { duration, isoDay, ruleShort, useData } from "../lib";
+import { dayRange, duration, ruleShort, useData } from "../lib";
 import { useLive } from "../live";
 import { linkProps } from "../router";
 import { useScope } from "../scope";
 import { Empty, Failed, Loading, When } from "../parts/Common";
+import { ExportLink } from "../parts/Export";
 
 const RATING: Record<Reports["scorecard"][number]["rating"], { label: string; c: string }> = {
   needs_attention: { label: "Needs attention", c: "var(--alert)" },
@@ -30,9 +31,7 @@ function List<T>({ title, aside, items, empty, row }: { title: string; aside?: s
 export function TeamReports() {
   const { team, hours } = useScope();
   const { version } = useLive();
-  const days = Math.min(90, Math.max(1, Math.round(hours / 24)));
-  const today = isoDay(new Date());
-  const from = isoDay(new Date(Date.now() - (days - 1) * 86_400_000));
+  const { from, to: today } = dayRange(hours);
   const [day, setDay] = useState(today);
   const { data, error, loading, reload } = useData(() => api.reports({ from, to: today, day, team }), [from, today, day, team], version);
 
@@ -45,6 +44,9 @@ export function TeamReports() {
     <>
       <div className="page-head" style={{ marginTop: 32 }}>
         <div><h2 style={{ fontSize: 20 }}>Scorecard</h2><p>{range}. Offline after shift ×3, un-assigned without a note ×2, other self-un-assignments ×1, +5 for a repeated pattern. False alarms don't count.</p></div>
+        <span className="grow" />
+        <ExportLink kind="report" from={r.from} to={r.to} team={team} label="Export report" />
+        <ExportLink kind="reviews" from={r.from} to={r.to} team={team} label="Export reviews" />
       </div>
       <section className="glass" style={{ padding: "6px 10px" }}>
         {r.scorecard.length === 0 ? <Empty title="No engineers in this team." /> : (

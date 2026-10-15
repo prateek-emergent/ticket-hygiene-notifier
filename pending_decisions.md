@@ -35,6 +35,12 @@ When a decision is made, move it to "Decided" with the date and the choice.
 | D21 | Owner and refresh cadence for the escalation KB | Open | User / support lead |
 | D22 | Trinity unreachable from the deployed app on 12 Oct: confirm the root cause with infra | Open (resolved itself; cause not confirmed) | Infra |
 | D23 | Slack bot approval, then connecting it | Open, waiting on Slack approval | User / Slack admin |
+| D24 | Shift-guardian merge, release 1: confirm with real data | Open, watching | User |
+| D25 | Themes 7 and 8: are 30 min and 60 min right? (PRD Q2) | Open (configurable) | Associates |
+| D26 | Who refreshes the Expo roster after 15 Dec (PRD Q3) | Open | Roster owner / Nikhita |
+| D27 | Expo associates besides Nikhita (PRD Q4) | Open | Nikhita |
+| D28 | Import shift-guardian's history (PRD Q6) | Open | shift-guardian's owner |
+| D29 | When to retire shift-guardian (PRD Q7) | Open; no action from us | shift-guardian's owner |
 
 ---
 
@@ -297,6 +303,48 @@ The Slack app (`config/slack-app-manifest.yaml`) is waiting for approval. Once a
 2. Invite the bot to the channel: `/invite @<bot name>`.
 3. Run `python scripts/check_slack.py --post-test`: it checks the token, posts one test message, and confirms associates' emails match Slack accounts.
 4. From then on the down-alert DM reaches the owner, even while `DRY_RUN=true`.
+
+### D24. Shift-guardian merge, release 1: confirm with real data
+*Raised 2026-10-15. Release 1 (R1–R10, E2 in `PRD_shift_guardian.md`) was deployed on 2026-10-15.*
+
+Built and tested, but not yet seen working on real events:
+- **Shift-end tracking (R1):** fills in from the first shift change after the deploy (about 2:30 PM IST on 15 Oct). Check the Shifts page: "Still Online after shift" and "Shift ends, last 24 h".
+- **Themes 7 and 8:** need a day or two of real tickets before we know whether they're accurate. Review their alerts on the dashboard (correct / false alarm).
+
+**Done when:** both have run on real data and their alerts look right; then close this entry.
+
+### D25. Themes 7 and 8: are 30 min and 60 min right? (PRD Q2)
+*Raised 2026-10-15.*
+
+Theme 7 fires after a ticket is held 30+ min and then dropped; theme 8 after a customer waits 60+ min with no reply. Both values are shift-guardian's. Associates should confirm they suit our teams.
+
+**Until decided:** 30 and 60 min. Changing them is one line in `config.py` (`HOLDS`).
+
+### D26. Who refreshes the Expo roster after 15 Dec (PRD Q3)
+*Raised 2026-10-15.*
+
+The Expo roster (`data/Roster_L1_L2_2026_Schedule - L2 Expo Team (Mid Oct - Dec).csv`) covers 16 Oct–15 Dec. Someone needs to export the next one and replace the file (and `config.py` `ROSTER_VIEWS` if the name changes). The Full Stack roster has the same deadline (D6).
+
+**Until decided:** after 15 Dec the Expo roster view shows nobody on the roster. Expo is roster-only, so no check is affected.
+
+### D27. Expo associates besides Nikhita (PRD Q4)
+*Raised 2026-10-15. Related: D11.*
+
+Nikhita is the Expo associate (from shift-guardian's mapping); she sees the Expo roster first. Confirm whether there are others.
+
+**Then:** add them to `associates` of the L2 Expo entry in `config.py` `ROSTER_VIEWS`, and to `config/dashboard_users.yaml` if they need access.
+
+### D28. Import shift-guardian's history (PRD Q6)
+*Raised 2026-10-15. Part of release 2 (P1); built only if the owner agrees.*
+
+Importing shift-guardian's shift records and hold alerts would mean our reports don't start empty. Needs shift-guardian's owner to agree and to share an export.
+
+**Until decided:** not built; our reports count from 14 Oct (the trial reset) onwards.
+
+### D29. When to retire shift-guardian (PRD Q7)
+*Raised 2026-10-15.*
+
+Its owner decides (PRD decision 7). **We take no action on retiring it:** we don't change, stop or redirect shift-guardian. Once release 1 has run cleanly for about a week, the user may raise it with the owner.
 
 ---
 

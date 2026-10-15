@@ -111,3 +111,8 @@ export function duration(minutes: number | null | undefined): string {
 export const minutesSince = (iso: string, now: number) => (now - new Date(iso).getTime()) / 60_000;
 /** A date as YYYY-MM-DD in the viewer's timezone. */
 export const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** The header's time window as whole days for reports and exports: { from, to } (YYYY-MM-DD, up to 90 days). */
+export function dayRange(hours: number): { from: string; to: string } {
+  const days = Math.min(90, Math.max(1, Math.round(hours / 24)));
+  return { from: isoDay(new Date(Date.now() - (days - 1) * 86_400_000)), to: isoDay(new Date()) };
+}

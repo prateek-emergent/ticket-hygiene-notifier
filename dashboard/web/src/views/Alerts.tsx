@@ -1,10 +1,11 @@
 import { Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api, type Alert } from "../api";
-import { RULES, ruleShort, ticketLabel, useData, windowLabel } from "../lib";
+import { RULES, ruleShort, ticketLabel, useData, windowLabel, dayRange } from "../lib";
 import { useLive } from "../live";
 import { linkProps, navigate } from "../router";
 import { useScope } from "../scope";
+import { ExportLink } from "../parts/Export";
 import { Empty, Failed, Loading, When } from "../parts/Common";
 
 const REVIEW = [
@@ -69,6 +70,7 @@ export function AlertsView({ params }: { params: URLSearchParams }) {
           <p>{team ? `${team}` : "All teams"}, {windowLabel(hours)}.</p>
         </div>
         <span className="grow" />
+        <ExportLink kind="alerts" {...dayRange(hours)} team={team} />
         <label className="search">
           <Search size={15} aria-hidden="true" />
           <input ref={searchRef} className="input" placeholder="Search ticket, engineer, reason   /" value={text} onChange={(e) => setText(e.target.value)} aria-label="Search alerts" />

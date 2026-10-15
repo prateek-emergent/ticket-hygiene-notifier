@@ -7,11 +7,15 @@ Never calls Trinity. Everything here is read from what the notifier stores:
 Rosters come from the roster files (config.py ROSTER_VIEWS). Teams there that the notifier doesn't monitor (L2 Expo)
 are shown in the roster view only: they have no presence, tickets, alerts or score here.
 
-The only write is "Run check now": a request in the kv table that the notifier picks up within seconds.
+Writes, all in our database only (never Trinity): "Run check now", a request in the kv table that the notifier
+picks up within seconds; and "Mark actioned" (release 2), an associate's note that they dealt with an engineer on
+the Shifts page. CSV exports (release 2) are read-only.
 """
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import logging
 from collections import Counter, defaultdict
@@ -21,7 +25,7 @@ from zoneinfo import ZoneInfo
 
 from notifier.detectors import RULE_TITLES, Rule
 from notifier.sync import RUN_DONE_KEY, RUN_REQUEST_KEY, RUN_RESULT_KEY
-from notifier.shifts import ShiftCalendar, roster_day
+from notifier.shifts import ShiftCalendar, roster_day, roster_week
 
 log = logging.getLogger(__name__)
 
@@ -33,10 +37,21 @@ HEAVY_DAY = 3  # alerts for one engineer in one day
 REPEATED_TICKET = 2  # alerts on one ticket
 NEEDS_ATTENTION = 3  # offline violations, or un-assignments without a note
 PATTERN_DAYS = 7  # the daily report's "repeated patterns" look back this far
+WEEK_DAYS = 7
+EXPORT_MAX_DAYS = 366
+EXPORTS = ("alerts", "reviews", "report", "actions")
 
 
 def _dt(s: str | None) -> datetime | None:
     return datetime.fromisoformat(s) if s else None
+
+
+def _cell(v) -> str:
+    """A CSV cell that a spreadsheet won't run as a formula (=, +, -, @ at the start)."""
+    if v is None:
+        return ""
+    v = str(v)
+    return "'" + v if v[:1] in ("=", "+", "-", "@", "\t", "\r") else v
 
 
 class ShiftViews:
@@ -123,22 +138,89 @@ class ShiftViews:
                                   "next_shift": nxt.isoformat() if nxt else None})
         off_shift.sort(key=lambda x: (-len(x["tickets"]), x["name"] or ""))
 
+        # "Mark actioned": the latest action on each row, if it was taken after the shift ended.
+        actions = [a for a in self.data.actions((now - RECENT).isoformat()) if keep(a["engineer"])]
+        latest: dict[tuple[str, str], dict] = {}
+        for a in actions:  # newest first
+            latest.setdefault((a["engineer"], a["context"]), a)
+        for row in still_online:
+            a = latest.get((row["email"], "still_online"))
+            row["action"] = a if a and a["at"] >= row["shift_end"] else None
+        for row in off_shift:
+            a = latest.get((row["email"], "off_shift"))
+            row["action"] = a if a and (not row["shift_ended"] or a["at"] >= row["shift_ended"]) else None
+
         return {"now": now.isoformat(), "timezone": self.tz_name, "team": team,
+                "teams": self.team_cards(now, team, presence, still_online, off_shift, open_by),
                 "still_online": still_online, "recent_ends": recent_ends, "off_shift_with_tickets": off_shift,
+                "actions": actions,
                 "roster": self.roster(now, roster, user, presence),
                 "synced": {"presence": self.store.get("synced_presence_at"),
                            "open_tickets": self.store.get("synced_open_tickets_at")},
                 "run_check": self.run_state()}
 
-    def roster(self, now: datetime, name: str | None, user: str | None, presence: dict) -> dict:
-        """Today's roster for one team, as written in its file, with who is on shift right now (R7)."""
-        names = [v["name"] for v in self.views]
+    def team_cards(self, now: datetime, team: str | None, presence: dict, still_online: list[dict],
+                   off_shift: list[dict], open_by: dict[str, list]) -> list[dict]:
+        """One card per associate's team: who is on shift, who of them isn't Online, and today's problems."""
+        cal = self.calendar(now)
+        today = now.astimezone(self.tz).date()
+        lo, hi = self._range(today, today)
+        alerts_today = Counter(f["engineer"] for f in self.data.alert_facts(lo, hi) if not f["false_alarm"])
+        cards = []
+        for t in self.data.teams:
+            if team and t["name"] != team:
+                continue
+            engineers = [e.lower() for e in t["engineers"]]
+            on = [e for e in engineers if cal is not None and cal.on_shift(e, now)]
+            not_online = [e for e in on if presence.get(e) != "ONLINE" and cal.is_certain(e, now)]
+            members = set(engineers)
+            cards.append({
+                "name": t["name"], "associates": [self.data.name(a) for a in t["associates"]],
+                "engineers": len(engineers), "on_shift": len(on),
+                "online": sum(1 for e in engineers if presence.get(e) == "ONLINE"),
+                "on_shift_not_online": [self._person(e) for e in not_online],
+                "still_online": sum(1 for r in still_online if r["email"] in members),
+                "off_shift_with_tickets": sum(1 for r in off_shift if r["email"] in members),
+                "open_tickets": sum(len(open_by.get(e, [])) for e in engineers),
+                "alerts_today": sum(alerts_today[e] for e in engineers),
+            })
+        return cards
+
+    def _view(self, name: str | None, user: str | None) -> dict | None:
         if not self.views:
-            return {"views": [], "name": None, "people": []}
+            return None
         view = next((v for v in self.views if v["name"] == name), None)
         if view is None and user:
             view = next((v for v in self.views if user.lower() in [a.lower() for a in v.get("associates", [])]), None)
-        view = view or self.views[0]
+        return view or self.views[0]
+
+    def week(self, now: datetime, name: str | None = None, user: str | None = None, start: date | None = None,
+             team: str | None = None) -> dict:
+        """A week of one team's roster, as written, one row per person (release 2, D3). For the notifier's own
+        roster the team filter keeps that team's engineers and associates."""
+        view = self._view(name, user)
+        if view is None:
+            return {"views": [], "name": None, "days": [], "people": []}
+        start = start or now.astimezone(self.tz).date()
+        people = roster_week(view["file"], self.tz_name, start, WEEK_DAYS)
+        if team and self.shifts_file and Path(view["file"]).resolve() == self.shifts_file.resolve():
+            t = next((x for x in self.data.teams if x["name"] == team), None)
+            if t is not None:
+                wanted = {e.lower() for e in t["engineers"]} | {a.lower() for a in t["associates"]}
+                people = [p for p in people if p["email"] in wanted]
+        rows = [{"email": p["email"], "name": p["name"], "role": p["role"], "monitored": p["email"] in self.monitored,
+                 "cells": [{"code": c["code"], "kind": c["kind"]} for c in p["cells"]]} for p in people]
+        rows.sort(key=lambda p: (p["role"].lower() != "associate", p["name"]))
+        return {"views": [v["name"] for v in self.views], "name": view["name"], "start": start.isoformat(),
+                "days": [(start + timedelta(days=i)).isoformat() for i in range(WEEK_DAYS)], "people": rows,
+                "roster_only": not any(p["monitored"] for p in rows)}
+
+    def roster(self, now: datetime, name: str | None, user: str | None, presence: dict) -> dict:
+        """Today's roster for one team, as written in its file, with who is on shift right now (R7)."""
+        names = [v["name"] for v in self.views]
+        view = self._view(name, user)
+        if view is None:
+            return {"views": [], "name": None, "people": []}
         today = now.astimezone(self.tz).date()
         rows = {r["email"]: r for r in roster_day(view["file"], self.tz_name, today)}
         for r in roster_day(view["file"], self.tz_name, today - timedelta(days=1)):  # last night's shift, still on
@@ -319,6 +401,55 @@ class ShiftViews:
                      for r in repeated for e in r["engineers"]]
         return {"day": day.isoformat(), "didnt_go_offline": didnt, "stayed_online_late": late,
                 "unassigned_without_note": without_note, "patterns": patterns, "pattern_days": PATTERN_DAYS}
+
+    # --- CSV exports (release 2) ---------------------------------------------------------------
+
+    def export(self, kind: str, now: datetime, start: date | None = None, end: date | None = None,
+               team: str | None = None) -> tuple[str, str]:
+        """(file name, CSV text) for alerts, reviews, report (per engineer, with the scorecard) or actions, over
+        local days start..end (default: the last 7 days, at most a year)."""
+        if kind not in EXPORTS:
+            raise ValueError(f"export must be one of {', '.join(EXPORTS)}")
+        today = now.astimezone(self.tz).date()
+        end = min(end or today, today)
+        start = max(min(start or end - timedelta(days=6), end), end - timedelta(days=EXPORT_MAX_DAYS - 1))
+        lo, hi = self._range(start, end)
+        keep = self._scope(team)
+        if kind == "alerts":
+            head = ["id", "sent_at", "theme", "ticket", "subject", "engineer", "engineer_email", "team", "reason",
+                    "url", "dry_run", "review", "reviewed_by", "review_note"]
+            rows = [[a["id"], a["sent_at"], a["rule_title"], a["ticket_num"] or a["ticket_id"] or "", a["subject"],
+                     a["engineer_name"], a["engineer"], a["team"], a["reason"], a["url"], a["dry_run"],
+                     (a["review"] or {}).get("verdict"), (a["review"] or {}).get("by"), (a["review"] or {}).get("note")]
+                    for a in self.data.alert_rows(lo, hi) if keep((a["engineer"] or "").lower())]
+        elif kind == "reviews":
+            head = ["at", "verdict", "reviewed_by", "note", "theme", "alert_id", "ticket", "subject", "engineer_email",
+                    "url"]
+            rows = [[f["at"], f["verdict"], f["by_email"], f["note"], RULE_TITLES[Rule(f["rule"])], f["alert_id"],
+                     f["ticket_num"] or "", f["subject"], f["engineer"], f["url"]]
+                    for f in self.data.feedback_rows(lo, hi) if keep((f["engineer"] or "").lower())]
+        elif kind == "report":
+            rep = self.reports(now, start, end, None, team)
+            card = {c["email"]: c for c in rep["scorecard"]}
+            rules = [r for r in Rule]
+            head = ["engineer", "email", "team", "rating", "score", "offline_after_shift", "unassigned_no_note",
+                    "unassigned_with_note", "patterns", "alerts", *[RULE_TITLES[r] for r in rules], "false_alarms"]
+            rows = [[e["name"], e["email"], e["team"], card[e["email"]]["rating"], card[e["email"]]["score"],
+                     e["offline_violations"], e["unassign_without_note"], e["unassign_with_note"],
+                     "; ".join(card[e["email"]]["patterns"]), e["alerts"], *[e["by_rule"].get(r.value, 0) for r in rules],
+                     e["false_alarms"]] for e in rep["engineers"]]
+        else:
+            head = ["at", "engineer", "email", "team", "situation", "tickets", "note", "by"]
+            rows = [[a["at"], a["engineer_name"], a["engineer"], a["team"],
+                     "still Online after shift" if a["context"] == "still_online" else "off shift with tickets",
+                     " ".join(f"#{t['num'] or t['ticket_id']}" for t in a["tickets"]), a["note"], a["by"]]
+                    for a in reversed(self.data.actions(lo, hi)) if keep(a["engineer"])]
+        out = io.StringIO()
+        w = csv.writer(out)
+        w.writerow(head)
+        w.writerows([[_cell(v) for v in r] for r in rows])
+        suffix = f"_{team.split()[0].lower()}" if team else ""
+        return f"ticket-hygiene_{kind}{suffix}_{start.isoformat()}_{end.isoformat()}.csv", out.getvalue()
 
     # --- Run check now (E2) ---------------------------------------------------------------------
 
