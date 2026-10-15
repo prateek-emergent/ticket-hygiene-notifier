@@ -98,6 +98,19 @@ CREATE TABLE IF NOT EXISTS open_tickets (
     synced_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS open_tickets_assignee ON open_tickets (assignee);
+-- R1: what happened at each shift end (notifier/shift_checks.py, track_shift_ends).
+CREATE TABLE IF NOT EXISTS shift_records (
+    key TEXT PRIMARY KEY,        -- email|shift end (ISO)
+    email TEXT NOT NULL,
+    shift_start TEXT NOT NULL,
+    shift_end TEXT NOT NULL,
+    status_at_end TEXT,          -- ONLINE | OFFLINE | ... | NULL (not observed)
+    outcome TEXT NOT NULL,       -- open | offline_on_time | went_offline_late | online_until_next_shift | not_observed
+    offline_at TEXT,
+    online_minutes INTEGER,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS shift_records_end ON shift_records (shift_end);
 -- Who may run a singleton job (the notifier) when several copies of the app run: see Store.take_lease.
 CREATE TABLE IF NOT EXISTS leases (
     name TEXT PRIMARY KEY,
@@ -254,6 +267,37 @@ class SqliteStore:
             sql, args = sql + " WHERE assignee=?", (assignee.lower(),)
         cols = ("ticket_id", "num", "subject", "level", "assignee", "synced_at")
         return [dict(zip(cols, r)) for r in self.db.execute(sql + " ORDER BY assignee, num", args)]
+
+    # --- R1: shift-end records -------------------------------------------------------------------
+
+    SHIFT_COLS = ("key", "email", "shift_start", "shift_end", "status_at_end", "outcome", "offline_at",
+                  "online_minutes", "updated_at")
+
+    def add_shift_record(self, rec: dict) -> bool:
+        """Insert once per (email, shift end); False if it already exists."""
+        rec = {**rec, "updated_at": _now()}
+        cur = self.db.execute(
+            f"INSERT OR IGNORE INTO shift_records ({','.join(self.SHIFT_COLS)}) VALUES ({','.join('?' * len(self.SHIFT_COLS))})",
+            tuple(rec.get(c) for c in self.SHIFT_COLS))
+        self.db.commit()
+        return cur.rowcount == 1
+
+    def close_shift_record(self, key: str, outcome: str, offline_at: str | None, online_minutes: int) -> None:
+        self.db.execute("UPDATE shift_records SET outcome=?, offline_at=?, online_minutes=?, updated_at=? "
+                        "WHERE key=? AND outcome='open'", (outcome, offline_at, online_minutes, _now(), key))
+        self.db.commit()
+
+    def shift_records(self, since: str | None = None, until: str | None = None, outcome: str | None = None) -> list[dict]:
+        sql, args = "SELECT * FROM shift_records WHERE 1=1", []
+        if since:
+            sql, args = sql + " AND shift_end >= ?", args + [since]
+        if until:
+            sql, args = sql + " AND shift_end < ?", args + [until]
+        if outcome:
+            sql, args = sql + " AND outcome = ?", args + [outcome]
+        cur = self.db.execute(sql + " ORDER BY shift_end", args)
+        cols = [c[0] for c in cur.description]
+        return [dict(zip(cols, r)) for r in cur]
 
     def take_lease(self, name: str, owner: str, ttl_seconds: float) -> bool:
         """Take or renew the lease `name` for `owner` until now + ttl. True when `owner` holds it afterwards:
@@ -423,6 +467,27 @@ class MongoStore:
         docs = self.db.open_tickets.find(q).sort([("assignee", 1), ("num", 1)])
         return [{"ticket_id": d["_id"], "num": d.get("num"), "subject": d.get("subject"), "level": d.get("level"),
                  "assignee": d["assignee"], "synced_at": d["synced_at"]} for d in docs]
+
+    # --- R1: shift-end records -------------------------------------------------------------------
+
+    def add_shift_record(self, rec: dict) -> bool:
+        try:
+            self.db.shift_records.insert_one({**rec, "_id": rec["key"], "updated_at": _now()})
+            return True
+        except DuplicateKeyError:
+            return False
+
+    def close_shift_record(self, key: str, outcome: str, offline_at: str | None, online_minutes: int) -> None:
+        self.db.shift_records.update_one({"_id": key, "outcome": "open"}, {"$set": {
+            "outcome": outcome, "offline_at": offline_at, "online_minutes": online_minutes, "updated_at": _now()}})
+
+    def shift_records(self, since: str | None = None, until: str | None = None, outcome: str | None = None) -> list[dict]:
+        q: dict = {}
+        if since or until:
+            q["shift_end"] = {**({"$gte": since} if since else {}), **({"$lt": until} if until else {})}
+        if outcome:
+            q["outcome"] = outcome
+        return [{k: v for k, v in d.items() if k != "_id"} for d in self.db.shift_records.find(q).sort("shift_end", 1)]
 
     def take_lease(self, name: str, owner: str, ttl_seconds: float) -> bool:
         """Same contract as SqliteStore.take_lease. One upsert on the lease's _id: it matches when the lease is

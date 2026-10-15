@@ -74,6 +74,9 @@ class ShiftTrinity:
     async def open_tickets(self, email):
         return self.open.get(email, [])
 
+    async def presences(self, emails):
+        return {e: self.presence.get(e) for e in emails}
+
     async def all_events(self, tid):
         return self.timelines[tid].events()
 
@@ -142,6 +145,53 @@ def test_shift_boundaries_missed_while_paused_are_skipped_not_judged_by_todays_s
     # and Thu 18:00 end (check due Thu 18:45, 5 min ago). Only the latter can be judged from status now.
     asyncio.run(checks.run(trinity, SHIFT_END + timedelta(days=1, minutes=50)))
     assert len(notifier.posts) == 1
+
+
+def test_shift_end_is_tracked_until_they_go_offline(tmp_path):
+    """R1: Online at shift end opens a record; going Offline 20 min later closes it as late, 20 min."""
+    monitor, notifier, checks = shift_monitor(tmp_path, [f"{KRISHNA},Wed,09:00,18:00"], {Rule.STATUS_SHIFT})
+    trinity = ShiftTrinity(presence={KRISHNA: "ONLINE"})
+    run = lambda now: asyncio.run(checks.run(trinity, now))  # noqa: E731
+    run(SHIFT_END - timedelta(minutes=1))
+    run(SHIFT_END + timedelta(minutes=1))
+    [rec] = monitor.store.shift_records()
+    assert rec["outcome"] == "open" and rec["status_at_end"] == "ONLINE" and notifier.posts == []  # no Slack at 0
+    trinity.presence[KRISHNA] = "OFFLINE"
+    run(SHIFT_END + timedelta(minutes=20))
+    [rec] = monitor.store.shift_records()
+    assert rec["outcome"] == "went_offline_late" and rec["online_minutes"] == 20
+
+
+def test_offline_at_shift_end_is_on_time_and_back_to_back_shifts_are_not_tracked(tmp_path):
+    monitor, _, checks = shift_monitor(tmp_path, [f"{KRISHNA},Wed,09:00,18:00", f"{RENUKA},Wed,09:00,18:00",
+                                                  f"{RENUKA},Wed,18:00,23:00"], {Rule.STATUS_SHIFT})
+    trinity = ShiftTrinity(presence={KRISHNA: "OFFLINE", RENUKA: "ONLINE"})
+    asyncio.run(checks.run(trinity, SHIFT_END - timedelta(minutes=1)))
+    asyncio.run(checks.run(trinity, SHIFT_END + timedelta(minutes=1)))
+    recs = {r["email"]: r for r in monitor.store.shift_records()}
+    assert recs[KRISHNA]["outcome"] == "offline_on_time" and RENUKA not in recs  # Renuka just started her next shift
+
+
+def test_shift_ends_missed_while_down_are_not_observed(tmp_path):
+    monitor, _, checks = shift_monitor(tmp_path, [f"{KRISHNA},Wed,09:00,18:00"], {Rule.STATUS_SHIFT})
+    trinity = ShiftTrinity(presence={KRISHNA: "ONLINE"})
+    asyncio.run(checks.run(trinity, SHIFT_START))
+    asyncio.run(checks.run(trinity, SHIFT_END + timedelta(hours=3)))  # down from 09:00 to 21:00
+    [rec] = monitor.store.shift_records()
+    assert rec["outcome"] == "not_observed" and rec["status_at_end"] is None
+
+
+def test_still_online_alert_lists_their_open_tickets_to_reassign(tmp_path):
+    """R2: the 45-min alert links each open ticket so the associate can reassign it in Trinity."""
+    monitor, notifier, checks = shift_monitor(tmp_path, [f"{KRISHNA},Wed,09:00,18:00"], {Rule.STATUS_SHIFT})
+    tickets = [_ticket(f"t{i}") for i in range(12)]
+    trinity = ShiftTrinity(presence={KRISHNA: "ONLINE"}, open_tickets={KRISHNA: tickets})
+    asyncio.run(checks.run(trinity, SHIFT_END))
+    asyncio.run(checks.run(trinity, SHIFT_END + timedelta(minutes=46)))
+    [(_, blocks)] = notifier.posts
+    body = "\n".join(b["text"]["text"] for b in blocks if b["type"] == "section")
+    assert "Still assigned to them (12), reassign in Trinity" in body and "…and 2 more" in body
+    assert "https://trinity/tickets/t0" in body
 
 
 def test_unlisted_engineer_status_is_not_checked(tmp_path):

@@ -27,6 +27,7 @@ RULE_EMOJI = {
 }
 
 EXCERPT_CHARS = 600
+OPEN_TICKETS_SHOWN = 10
 
 
 def _quote(text: str, limit: int = EXCERPT_CHARS) -> str:
@@ -122,6 +123,7 @@ def _local(t: datetime, tz: str) -> str:
 def build_status_messages(
     engineer_name: str, engineer_email: str, boundary: str, shift_start: datetime, shift_end: datetime,
     presence: str | None, minutes_after: int, tz: str, associate_mentions: list[str],
+    open_tickets: list[tuple[str, str]] | None = None,
 ) -> tuple[tuple[str, list[dict]], tuple[str, list[dict]]]:
     """Rule 4: (channel message, direct message to the engineer)."""
     shown = (presence or "unknown").capitalize()
@@ -142,8 +144,13 @@ def build_status_messages(
         {"type": "section", "text": {"type": "mrkdwn", "text": f"{RULE_EMOJI[Rule.STATUS_SHIFT]} *{title}*"}},
         {"type": "section", "text": {"type": "mrkdwn", "text": fields}},
         {"type": "section", "text": {"type": "mrkdwn", "text": f"*Why flagged:* {what}, {minutes_after} min later."}},
-        {"type": "context", "elements": [{"type": "mrkdwn", "text": f"Theme `{Rule.STATUS_SHIFT.value}` · engineer reminded by DM"}]},
     ]
+    if open_tickets:
+        shown = "\n".join(f"• <{url}|{label[:90]}>" for label, url in open_tickets[:OPEN_TICKETS_SHOWN])
+        more = f"\n…and {len(open_tickets) - OPEN_TICKETS_SHOWN} more" if len(open_tickets) > OPEN_TICKETS_SHOWN else ""
+        channel_blocks.append({"type": "section", "text": {"type": "mrkdwn", "text":
+            f"*Still assigned to them ({len(open_tickets)}), reassign in Trinity:*\n{shown}{more}"}})
+    channel_blocks.append({"type": "context", "elements": [{"type": "mrkdwn", "text": f"Theme `{Rule.STATUS_SHIFT.value}` · engineer reminded by DM"}]})
     dm_text = ask.format(minutes_after, shown)
     dm_blocks = [
         {"type": "section", "text": {"type": "mrkdwn", "text": f":wave: Hi {engineer_name.split()[0]}, a quick reminder. {dm_text}"}},

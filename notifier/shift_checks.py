@@ -29,6 +29,13 @@ from .trinity import Trinity
 # time has just passed. After a gap (notifier paused, down, redeploying) older boundaries are skipped: today's
 # status says nothing about whether someone was online at a shift change two days ago.
 STATUS_MAX_CATCHUP = timedelta(minutes=10)
+PRESENCE_FRESH = timedelta(minutes=3)  # the copy of Trinity status is used when no older than this
+
+
+def _record(email: str, shift, status: str | None, outcome: str) -> dict:
+    return {"key": f"{email}|{shift.end.isoformat()}", "email": email, "shift_start": shift.start.isoformat(),
+            "shift_end": shift.end.isoformat(), "status_at_end": status, "outcome": outcome,
+            "offline_at": None, "online_minutes": 0 if outcome == "offline_on_time" else None}
 
 log = logging.getLogger(__name__)
 
@@ -97,11 +104,57 @@ class ShiftChecks:
         if cal is None:
             return
         if Rule.STATUS_SHIFT in self.cfg.enabled_rules:
+            await self.track_shift_ends(trinity, cal, now)
             await self.check_status(trinity, cal, now)
         if Rule.OFF_SHIFT_HOLD in self.cfg.enabled_rules:
             await self.check_off_shift_tickets(trinity, cal, now)
 
     # --- rule 4 ------------------------------------------------------------------------------
+
+    async def presences_now(self, trinity: Trinity, emails: list[str], now: datetime) -> dict[str, str | None]:
+        """Status from the copy of Trinity data (notifier/sync.py) when it is under 3 min old, else asked live."""
+        if not emails:
+            return {}
+        copy = self.monitor.store.presences()
+        fresh = {e: copy[e][0] for e in emails
+                 if e in copy and now - datetime.fromisoformat(copy[e][1]) <= PRESENCE_FRESH}
+        missing = [e for e in emails if e not in fresh]
+        return fresh | (await trinity.presences(missing) if missing else {})
+
+    async def track_shift_ends(self, trinity: Trinity, cal: ShiftCalendar, now: datetime) -> None:
+        """R1: at each shift end record the engineer's status; while they stay Online the record is "open",
+        and it is closed as went_offline_late (when they go Offline) or online_until_next_shift. Shift ends
+        missed while the notifier was off are recorded as not_observed, never judged by today's status."""
+        store = self.monitor.store
+        stored = store.get("shift_ends_tracked_until")
+        since = datetime.fromisoformat(stored) if stored else now
+        monitored = self.monitor.directory.is_monitored
+        if now - since > STATUS_MAX_CATCHUP:
+            for email, kind, shift in cal.boundaries(since, now - STATUS_MAX_CATCHUP):
+                if kind == "end" and monitored(email):
+                    store.add_shift_record(_record(email, shift, None, "not_observed"))
+            since = now - STATUS_MAX_CATCHUP
+        ends = [(e, s) for e, kind, s in cal.boundaries(since, now)
+                if kind == "end" and monitored(e) and cal.is_certain(e, s.end) and not cal.on_shift(e, now)]
+        opened = store.shift_records(outcome="open")
+        presence = await self.presences_now(trinity, sorted({e for e, _ in ends} | {r["email"] for r in opened}), now)
+        for email, shift in ends:
+            status = presence.get(email)
+            online = status == "ONLINE"
+            if store.add_shift_record(_record(email, shift, status, "open" if online else "offline_on_time")) and online:
+                self.monitor.trace("status", f"Shift ended {shift.end:%H:%M} UTC; still Online", engineer=email,
+                                   rule=Rule.STATUS_SHIFT.value, outcome="waiting",
+                                   data={"shift_end": shift.end, "presence": status})
+        for rec in opened:
+            email, end = rec["email"], datetime.fromisoformat(rec["shift_end"])
+            minutes = int((now - end).total_seconds() // 60)
+            if presence.get(email) not in ("ONLINE", None):
+                store.close_shift_record(rec["key"], "went_offline_late", now.isoformat(), minutes)
+                self.monitor.trace("status", f"Went Offline {minutes} min after shift end", engineer=email,
+                                   rule=Rule.STATUS_SHIFT.value, outcome="ok", data={"online_minutes": minutes})
+            elif cal.on_shift(email, now):
+                store.close_shift_record(rec["key"], "online_until_next_shift", None, minutes)
+        store.put("shift_ends_tracked_until", now.isoformat())
 
     async def check_status(self, trinity: Trinity, cal: ShiftCalendar, now: datetime) -> None:
         store, after = self.monitor.store, self.cfg.status_after
@@ -143,9 +196,16 @@ class ShiftChecks:
                 continue  # another notifier copy is posting it
             name = agent["name"] if agent else email
             mentions = [await self.monitor.notifier.mention(a) for a in self.monitor.directory.associates_for(email)]
+            open_links: list[tuple[str, str]] = []
+            if kind == "end":  # R2: give the associate the tickets to reassign (the app itself never writes)
+                try:
+                    open_links = [(f"#{t.num} · {t.subject}" if t.num else t.subject, self.cfg.ticket_url(t.id, t.num))
+                                  for t in await trinity.open_tickets(email)]
+                except Exception as e:
+                    log.warning("could not list %s's open tickets: %s", email, e)
             (text, blocks), (dm_text, dm_blocks) = build_status_messages(
                 name, email, kind, shift.start, shift.end, presence,
-                int(after.total_seconds() // 60), self.cfg.shifts_tz, mentions,
+                int(after.total_seconds() // 60), self.cfg.shifts_tz, mentions, open_links,
             )
             try:
                 if self.cfg.status_post_channel:
@@ -159,7 +219,8 @@ class ShiftChecks:
             reason = f"Status was {(presence or 'unknown').title()}, expected {expected}, " \
                      f"{int(after.total_seconds() // 60)} min after shift {kind}."
             store.record_alert(Rule.STATUS_SHIFT.value, key, "", email,
-                               {"kind": kind, "presence": presence, "shift_start": shift.start.isoformat()},
+                               {"kind": kind, "presence": presence, "shift_start": shift.start.isoformat(),
+                                "open_tickets": [label for label, _ in open_links]},
                                engineer_name=name, associates=associates, reason=reason,
                                dry_run=self.monitor.notifier.dry_run)
             self.monitor.trace("alert", f"Alerted {', '.join(associates) or 'the channel'}: {reason}",

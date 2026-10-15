@@ -60,6 +60,8 @@ def ensure_indexes(db) -> None:
 
     db.dashboard_sessions.create_index("token_hash", unique=True)
     db.open_tickets.create_index("assignee")
+    db.shift_records.create_index("shift_end")
+    db.shift_records.create_index("outcome")
 
     # Raise each id counter to at least the highest id in use, so a lost or stale _counters document can't
     # hand out an id that already exists.
