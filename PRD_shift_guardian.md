@@ -1,6 +1,6 @@
 # PRD: one app for ticket hygiene and shift monitoring
 
-**Status:** spec agreed for release 1, 2026-10-15. Release 1 (R1–R10, E2) built and tested 2026-10-15; deploying.
+**Status:** spec agreed for release 1, 2026-10-15. Release 1 (R1–R10, E2) built, tested and deployed 2026-10-15. Release 2 (P1) not started.
 **Owner:** Prateek M. **Apps:** this app (`alert-dedupe-mongo`) absorbs `shift-guardian-2`.
 **Decisions taken:** section 9. **Background comparison of the two apps:** appendix A.
 

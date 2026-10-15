@@ -18,6 +18,9 @@ from .models import Event, Ticket
 log = logging.getLogger(__name__)
 
 PAGE_LIMIT = 200  # Trinity clamps get_ticket_messages to 1..200
+# The only Trinity tools this app may call. Anything else (assign_ticket, update_ticket_status, add_internal_note,
+# ...) is refused before it reaches Trinity, on top of the read-only key (PRD_shift_guardian.md, decision 1).
+READ_ONLY_TOOLS = frozenset({"get_ticket", "list_tickets", "get_ticket_messages", "list_agents"})
 
 
 class TrinityError(RuntimeError):
@@ -29,6 +32,8 @@ class Trinity:
         self._session = session
 
     async def _call(self, tool: str, args: dict[str, Any]) -> dict[str, Any]:
+        if tool not in READ_ONLY_TOOLS:
+            raise TrinityError(f"refused to call {tool}: this app only reads from Trinity")
         result = await self._session.call_tool(tool, args)
         text = "".join(getattr(c, "text", "") for c in (result.content or []))
         if result.is_error:
