@@ -168,13 +168,15 @@ class EventService:
             await asyncio.sleep(self.reconcile_seconds)
 
     async def shift_worker(self) -> None:
-        """Rules 4-5 run on the clock, not on ticket events: once a minute."""
-        if self.monitor.shift_checks is None:
+        """Rules 4-5 and the Trinity data sync run on the clock, not on ticket events: once a minute."""
+        if self.monitor.shift_checks is None and self.monitor.sync is None:
             return
         while True:
             try:
                 async with connect(self.cfg.trinity_url, self.cfg.trinity_headers) as trinity:
-                    await self.monitor.shift_checks.run(trinity, datetime.now(timezone.utc))
+                    if self.monitor.shift_checks is not None:
+                        await self.monitor.shift_checks.run(trinity, datetime.now(timezone.utc))
+                    await self.monitor.run_sync(trinity)
                 self.monitor.cycle_ok()
             except Exception as e:
                 self.monitor.cycle_failed(f"{type(e).__name__}: {e}")

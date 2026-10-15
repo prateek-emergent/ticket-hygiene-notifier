@@ -83,6 +83,21 @@ CREATE TABLE IF NOT EXISTS alert_claims (
     claimed_at TEXT NOT NULL,
     PRIMARY KEY (rule, trigger_event_id)
 );
+-- A copy of Trinity data, refreshed by notifier/sync.py, so dashboard views don't have to ask Trinity.
+CREATE TABLE IF NOT EXISTS presence (
+    email TEXT PRIMARY KEY,
+    presence TEXT,               -- ONLINE | OFFLINE | ... (NULL: Trinity doesn't know them)
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS open_tickets (
+    ticket_id TEXT PRIMARY KEY,
+    num INTEGER,
+    subject TEXT,
+    level TEXT,
+    assignee TEXT NOT NULL,
+    synced_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS open_tickets_assignee ON open_tickets (assignee);
 -- Who may run a singleton job (the notifier) when several copies of the app run: see Store.take_lease.
 CREATE TABLE IF NOT EXISTS leases (
     name TEXT PRIMARY KEY,
@@ -211,6 +226,34 @@ class SqliteStore:
     def count_alerts(self, rule: str) -> int:
         """How many alerts have been recorded for a rule (used by the off-shift sweep trace)."""
         return self.db.execute("SELECT COUNT(*) FROM alerts WHERE rule=?", (rule,)).fetchone()[0]
+
+    # --- copy of Trinity data (notifier/sync.py) -------------------------------------------------
+
+    def put_presences(self, presences: dict[str, str | None]) -> None:
+        at = _now()
+        self.db.executemany("INSERT OR REPLACE INTO presence (email, presence, updated_at) VALUES (?,?,?)",
+                            [(e.lower(), p, at) for e, p in presences.items()])
+        self.db.commit()
+
+    def presences(self) -> dict[str, tuple[str | None, str]]:
+        """{email: (presence, updated_at)}"""
+        return {r[0]: (r[1], r[2]) for r in self.db.execute("SELECT email, presence, updated_at FROM presence")}
+
+    def put_open_tickets(self, assignee: str, tickets: list[dict]) -> None:
+        """Replace one engineer's open tickets with `tickets` ({ticket_id, num, subject, level})."""
+        at, assignee = _now(), assignee.lower()
+        self.db.execute("DELETE FROM open_tickets WHERE assignee=?", (assignee,))
+        self.db.executemany(
+            "INSERT OR REPLACE INTO open_tickets (ticket_id, num, subject, level, assignee, synced_at) VALUES (?,?,?,?,?,?)",
+            [(x["ticket_id"], x.get("num"), x.get("subject"), x.get("level"), assignee, at) for x in tickets])
+        self.db.commit()
+
+    def open_tickets(self, assignee: str | None = None) -> list[dict]:
+        sql, args = "SELECT ticket_id, num, subject, level, assignee, synced_at FROM open_tickets", ()
+        if assignee:
+            sql, args = sql + " WHERE assignee=?", (assignee.lower(),)
+        cols = ("ticket_id", "num", "subject", "level", "assignee", "synced_at")
+        return [dict(zip(cols, r)) for r in self.db.execute(sql + " ORDER BY assignee, num", args)]
 
     def take_lease(self, name: str, owner: str, ttl_seconds: float) -> bool:
         """Take or renew the lease `name` for `owner` until now + ttl. True when `owner` holds it afterwards:
@@ -356,6 +399,30 @@ class MongoStore:
 
     def count_alerts(self, rule: str) -> int:
         return self.db.alerts.count_documents({"rule": rule})
+
+    # --- copy of Trinity data (notifier/sync.py) -------------------------------------------------
+
+    def put_presences(self, presences: dict[str, str | None]) -> None:
+        at = _now()
+        for e, p in presences.items():
+            self.db.presence.update_one({"_id": e.lower()}, {"$set": {"presence": p, "updated_at": at}}, upsert=True)
+
+    def presences(self) -> dict[str, tuple[str | None, str]]:
+        return {d["_id"]: (d.get("presence"), d["updated_at"]) for d in self.db.presence.find({})}
+
+    def put_open_tickets(self, assignee: str, tickets: list[dict]) -> None:
+        at, assignee = _now(), assignee.lower()
+        self.db.open_tickets.delete_many({"assignee": assignee})
+        for x in tickets:
+            self.db.open_tickets.replace_one({"_id": x["ticket_id"]}, {
+                "_id": x["ticket_id"], "num": x.get("num"), "subject": x.get("subject"), "level": x.get("level"),
+                "assignee": assignee, "synced_at": at}, upsert=True)
+
+    def open_tickets(self, assignee: str | None = None) -> list[dict]:
+        q = {"assignee": assignee.lower()} if assignee else {}
+        docs = self.db.open_tickets.find(q).sort([("assignee", 1), ("num", 1)])
+        return [{"ticket_id": d["_id"], "num": d.get("num"), "subject": d.get("subject"), "level": d.get("level"),
+                 "assignee": d["assignee"], "synced_at": d["synced_at"]} for d in docs]
 
     def take_lease(self, name: str, owner: str, ttl_seconds: float) -> bool:
         """Same contract as SqliteStore.take_lease. One upsert on the lease's _id: it matches when the lease is

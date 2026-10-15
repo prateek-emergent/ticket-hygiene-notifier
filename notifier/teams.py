@@ -42,6 +42,11 @@ class Directory:
         ]
         return cls(teams, data.get("exempt_from_reassign_rule", []))
 
+    @property
+    def engineers(self) -> list[str]:
+        """Every monitored engineer (lower-case), sorted."""
+        return sorted(self._by_engineer)
+
     def is_monitored(self, engineer_email: str | None) -> bool:
         return bool(engineer_email) and engineer_email.lower() in self._by_engineer
 

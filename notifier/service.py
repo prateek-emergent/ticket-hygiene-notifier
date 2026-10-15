@@ -60,6 +60,7 @@ class Monitor:
         self.escalation_judge = escalation_judge
         self.rca_judge = rca_judge  # rule 7 (notifier/rca.py)
         self.shift_checks = None  # rules 4-5; set by the CLI when enabled (notifier/shift_checks.py)
+        self.sync = None  # copy of Trinity presence and open tickets (notifier/sync.py); set by the CLI
 
     def trace(self, kind: str, summary: str, **fields) -> None:
         """Append to the activity trace the dashboard shows. No-op without a store (backtest, check)."""
@@ -347,6 +348,7 @@ class Monitor:
                     await self.run_due(trinity)
                     if self.shift_checks is not None:
                         await self.shift_checks.run(trinity, _now())
+                    await self.run_sync(trinity)
                 self.cycle_ok()
             except Exception as e:
                 self.cycle_failed(f"{type(e).__name__}: {e}")
@@ -355,6 +357,17 @@ class Monitor:
                            f"{type(e).__name__}: {e}"[:500], outcome="error")
             self.heartbeat()
             await asyncio.sleep(self.cfg.poll_seconds)
+
+    async def run_sync(self, trinity, force: bool = False) -> None:
+        """Refresh the copy of Trinity data. A failure here is logged but doesn't fail the cycle: the checks
+        themselves already ran."""
+        if self.sync is None:
+            return
+        try:
+            await self.sync.run(trinity, _now(), force=force)
+        except Exception as e:
+            log.exception("Trinity data sync failed")
+            self.trace("error", f"Trinity data sync failed: {type(e).__name__}: {e}"[:500], outcome="error")
 
     def announce(self, mode: str) -> None:
         """Record a (re)start and what this notifier runs with."""

@@ -3,6 +3,7 @@ get_ticket_messages). The service never writes to Trinity."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
@@ -87,6 +88,23 @@ class Trinity:
                 name = " ".join(x for x in (a.get("first_name"), a.get("last_name")) if x) or email
                 return {"name": name, "presence": (a.get("presence") or "").upper() or None}
         return None
+
+    async def presences(self, emails: list[str], concurrency: int = 6) -> dict[str, str | None]:
+        """Trinity status ("ONLINE", "OFFLINE", ...) for each email; None when Trinity doesn't know the person.
+        One bulk call first (Trinity caps it at 200 agents), then a lookup each for those it left out."""
+        wanted = {e.lower() for e in emails}
+        data = await self._call("list_agents", {"limit": 200})
+        agents = data.get("result", data) if isinstance(data, dict) else data
+        found = {(a.get("email") or "").lower(): (a.get("presence") or "").upper() or None for a in agents or []}
+        out = {e: found[e] for e in wanted if e in found}
+        sem = asyncio.Semaphore(concurrency)
+
+        async def one(email: str) -> None:
+            async with sem:
+                out[email] = await self.agent_presence(email)
+
+        await asyncio.gather(*(one(e) for e in wanted - out.keys()))
+        return out
 
     async def agent_presence(self, email: str) -> str | None:
         a = await self.agent(email)

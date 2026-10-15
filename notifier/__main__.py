@@ -30,6 +30,7 @@ from .shift_checks import ShiftChecks
 from .service import Monitor
 from .slack import SlackNotifier
 from .store import Store
+from .sync import TrinitySync
 from .systemone import SystemOneClassifier
 from .teams import Directory
 from .trinity import connect
@@ -105,6 +106,8 @@ def build_monitor(cfg: Config, *, dry_run: bool, use_llm: bool, with_store: bool
     monitor = Monitor(cfg, directory, classifier, notifier, store, escalation_judge=judge, rca_judge=rca)
     if with_store and {Rule.STATUS_SHIFT, Rule.OFF_SHIFT_HOLD} & cfg.enabled_rules:
         monitor.shift_checks = ShiftChecks(monitor)
+    if with_store:
+        monitor.sync = TrinitySync(monitor)
     return monitor
 
 
