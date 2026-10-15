@@ -64,7 +64,9 @@ export function ShiftsView() {
         <div>
           <h2>Shifts</h2>
           <p>
-            {team ?? "All teams"}. Status from the copy of Trinity data, refreshed {ago(d.synced.presence)}; open tickets {ago(d.synced.open_tickets)}.
+            {team ?? "All teams"}. {d.synced.presence
+              ? <>Status from the copy of Trinity data, refreshed {ago(d.synced.presence)}; open tickets {d.synced.open_tickets ? ago(d.synced.open_tickets) : "not yet"}.</>
+              : <>Not synced from Trinity yet: the lists fill in once the notifier runs.</>}
           </p>
         </div>
         <span className="grow" />
