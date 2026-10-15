@@ -1,9 +1,10 @@
 // The notifier itself: is it running, with what, how the models perform, what was skipped, what failed.
 import { api } from "../api";
-import { ago, OUTCOME_LABEL, ruleShort, useData, windowLabel } from "../lib";
+import { ago, OUTCOME_LABEL, RULES, ruleShort, useData, windowLabel } from "../lib";
 import { useLive } from "../live";
 import { useScope } from "../scope";
 import { Empty, Failed, Loading, When } from "../parts/Common";
+import { RunCheck } from "../parts/RunCheck";
 
 
 export function SystemView({ params }: { params: URLSearchParams }) {
@@ -20,6 +21,8 @@ export function SystemView({ params }: { params: URLSearchParams }) {
     <div className="page">
       <div className="page-head">
         <div><h2>System</h2><p>The notifier's own health, configuration and model performance, {windowLabel(hours)}. All teams.</p></div>
+        <span className="grow" />
+        <RunCheck />
       </div>
       <div className="panes" style={{ padding: 0 }}>
         <section className="glass pane">
@@ -39,7 +42,7 @@ export function SystemView({ params }: { params: URLSearchParams }) {
           <div className="rows">
             <div className="kv"><span>Theme 1 model</span><span>{info ? `Option ${info.pending_model.option}: ${info.pending_model.models.join(" + ")}` : "-"}</span></div>
             <div className="kv"><span>Theme 6 judge</span><span>{info?.l3_judge ? `${info.l3_judge.model}${info.l3_judge.fallback ? `, ${info.l3_judge.fallback} fallback` : ""}` : "off"}</span></div>
-            {info?.rules && ["pending_without_open_question", "reassigned_from_colleague", "picked_up_during_overwatch_run", "status_not_matching_shift", "ticket_held_off_shift", "l3_escalation_check", "escalation_note_quality"].map((r) => (
+            {info?.rules && RULES.map((x) => x.id).map((r) => (
               <div key={r} className="kv"><span>{ruleShort(r)}</span><span className={info.rules.includes(r) ? "" : "faint"}>{info.rules.includes(r) ? "On" : "Off"}</span></div>
             ))}
           </div>

@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from .detectors import Rule
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_TICKET_URL = "https://trinity-base.internal.emergent.host/tickets/{id}"
 
 
 def load_rules_config(path: str | Path | None = None):
@@ -144,9 +145,7 @@ class Config:
         return cls(
             trinity_url=url,
             trinity_headers=headers,
-            ticket_url_template=os.getenv(
-                "TICKET_URL_TEMPLATE", "https://trinity-base.internal.emergent.host/tickets/{id}"
-            ),
+            ticket_url_template=os.getenv("TICKET_URL_TEMPLATE", DEFAULT_TICKET_URL),
             slack_token=os.getenv("SLACK_BOT_TOKEN") or None,
             slack_channel=os.getenv("SLACK_CHANNEL", "#ticket-hygiene"),
             dry_run=_bool("DRY_RUN", True),

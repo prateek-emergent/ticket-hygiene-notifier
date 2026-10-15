@@ -11,18 +11,25 @@ import yaml
 from aiohttp import web
 from dotenv import load_dotenv
 
-from notifier.config import load_rules_config
+from notifier.config import DEFAULT_TICKET_URL, load_rules_config
+from notifier.store import Store
 
 from .app import Dashboard, Settings
 from .auth import AllowList, is_loopback
 from .queries import Data
+from .shiftviews import ShiftViews
 
 
-def build(state_db: str | Path, teams_file: str | Path, users_file: str | Path, settings: Settings) -> web.Application:
+def build(state_db: str | Path, teams_file: str | Path, users_file: str | Path, settings: Settings,
+          rules_config=None) -> web.Application:
     doc = yaml.safe_load(Path(teams_file).read_text(encoding="utf-8")) if Path(teams_file).exists() else {}
     doc = doc or {}
     data = Data(state_db, doc.get("teams") or [], doc.get("names") or {})
-    return Dashboard(data, AllowList(users_file), settings).app()
+    rc = rules_config or load_rules_config()
+    views = ShiftViews(Store(state_db), data, shifts_file=rc.SHIFTS["file"], tz=rc.SHIFTS["timezone"],
+                       roster_views=getattr(rc, "ROSTER_VIEWS", None) or [{"name": "Roster", "file": rc.SHIFTS["file"]}],
+                       ticket_url=os.getenv("TICKET_URL_TEMPLATE", DEFAULT_TICKET_URL))
+    return Dashboard(data, AllowList(users_file), settings, views).app()
 
 
 def main() -> None:

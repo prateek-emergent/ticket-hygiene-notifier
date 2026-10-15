@@ -9,10 +9,13 @@ export const RULES: { id: string; short: string }[] = [
   { id: "ticket_held_off_shift", short: "Held while off shift" },
   { id: "l3_escalation_check", short: "6a · L3 escalation" },
   { id: "escalation_note_quality", short: "6b · Escalation note" },
+  { id: "held_then_unassigned", short: "Held, then dropped" },
+  { id: "assigned_without_reply", short: "No reply 60+ min" },
 ];
 /** The one time window, chosen in the header and shared by every page. */
 export const WINDOWS = [
   { h: 1, label: "Last hour" }, { h: 24, label: "Last 24 h" }, { h: 24 * 7, label: "Last 7 days" }, { h: 24 * 30, label: "Last 30 days" },
+  { h: 24 * 90, label: "Last 90 days" },
 ];
 export const windowLabel = (h: number) => WINDOWS.find((w) => w.h === h)?.label.toLowerCase() ?? `last ${h} h`;
 
@@ -36,7 +39,7 @@ export const OUTCOME_LABEL: Record<string, string> = {
 
 export const KIND_LABEL: Record<string, string> = {
   scheduled: "Check scheduled", recheck: "Rechecking", check: "Check finished", model: "Model call",
-  alert: "Alert sent", status: "Status checked", sweep: "Off-shift sweep", cycle: "Poll cycle", error: "Error", start: "Notifier started",
+  alert: "Alert sent", status: "Status checked", sweep: "Off-shift sweep", cycle: "Poll cycle", error: "Error", start: "Notifier started", run: "Run check now",
 };
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
@@ -97,3 +100,14 @@ export function useNow(intervalMs = 5000): number {
   }, [intervalMs]);
   return now;
 }
+
+/** "1 h 05 min" from minutes. */
+export function duration(minutes: number | null | undefined): string {
+  if (minutes === null || minutes === undefined) return "-";
+  const m = Math.max(0, Math.round(minutes));
+  return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`;
+}
+/** Minutes from `iso` until `now` (ms). */
+export const minutesSince = (iso: string, now: number) => (now - new Date(iso).getTime()) / 60_000;
+/** A date as YYYY-MM-DD in the viewer's timezone. */
+export const isoDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

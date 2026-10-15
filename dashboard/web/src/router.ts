@@ -7,6 +7,7 @@ export type Route =
   | { name: "alert"; id: number }
   | { name: "review" }
   | { name: "team" }
+  | { name: "shifts" }
   | { name: "tickets" }
   | { name: "ticket"; ref: string }
   | { name: "system" }
@@ -20,6 +21,7 @@ export function parse(path: string): Route {
   if (head === "alerts" && /^\d+$/.test(arg)) return { name: "alert", id: Number(arg) };
   if (head === "review") return { name: "review" };
   if (head === "team") return { name: "team" };
+  if (head === "shifts") return { name: "shifts" };
   if (head === "tickets") return arg ? { name: "ticket", ref: decodeURIComponent(arg) } : { name: "tickets" };
   if (head === "system") return { name: "system" };
   return { name: "notfound" };

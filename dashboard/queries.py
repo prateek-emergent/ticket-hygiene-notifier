@@ -143,6 +143,16 @@ class _BaseData:
                        "at": review["at"], "note": review["note"]} if review else None,
         }
 
+    def _fact(self, r, fb: dict) -> dict:
+        """One alert as the reports and scorecard (dashboard/shiftviews.py) read it."""
+        review = fb.get((r["rule"], r["trigger_event_id"]))
+        payload = _json(r["payload"]) or {}
+        return {"id": r["rowid"], "rule": r["rule"], "trigger_event_id": r["trigger_event_id"],
+                "ticket_id": r["ticket_id"] or None, "ticket_num": r["ticket_num"], "subject": r["subject"],
+                "engineer": (r["engineer"] or "").lower(), "sent_at": r["sent_at"], "url": r["url"],
+                "details": payload.get("details") or payload,
+                "false_alarm": bool(review and review["verdict"] == "false_alarm")}
+
     def _activity_row(self, r, nums: dict[str, int] | None = None) -> dict:
         return {
             "id": r["id"], "at": r["at"], "kind": r["kind"], "rule": r["rule"],
@@ -329,6 +339,12 @@ class SqliteData(_BaseData):
                 break
         more = len(items) > limit
         return {"items": items[:limit], "more": more}
+
+    def alert_facts(self, since: str, until: str) -> list[dict]:
+        fb = self._latest_feedback()
+        rows = self.db.execute("SELECT rowid, * FROM alerts WHERE sent_at>=? AND sent_at<? ORDER BY sent_at",
+                               (since, until))
+        return [self._fact(r, fb) for r in rows]
 
     def alert(self, alert_id: int) -> dict | None:
         r = self.db.execute("SELECT rowid, * FROM alerts WHERE rowid=?", (alert_id,)).fetchone()
@@ -657,6 +673,11 @@ class MongoData(_BaseData):
                 break
         more = len(items) > limit
         return {"items": items[:limit], "more": more}
+
+    def alert_facts(self, since: str, until: str) -> list[dict]:
+        fb = self._latest_feedback()
+        docs = self.db.alerts.find({"sent_at": {"$gte": since, "$lt": until}}, {"_id": 0}).sort("sent_at", 1)
+        return [self._fact(self._alert_doc(d), fb) for d in docs]
 
     def alert(self, alert_id: int) -> dict | None:
         doc = self.db.alerts.find_one({"id": alert_id}, {"_id": 0})

@@ -11,13 +11,15 @@ Watches Trinity tickets and engineers and posts to a Slack channel, tagging the 
 | 5 | `ticket_held_off_shift` | A customer has waited 3+ h (counted from the later of their message and the assignee's shift end) on an **OPEN** ticket whose assignee is off shift | PENDING/CLOSED tickets; on-shift assignees |
 | 6a | `l3_escalation_check` | An L2→L3 escalation that the escalation knowledge base (`kb/escalation/*.md`) says L2 could have handled | Escalations the KB says need L3; issues the KB doesn't cover; low-confidence judgements; no KB present |
 | 6b | `escalation_note_quality` | An L2→L3 escalation whose internal note (the RCA) is missing, under 80 characters, vague (no cause and no exact ask, or pasted text), or states a cause with no evidence | Partial notes (e.g. no User ID): listed in the dashboard only; escalations by people outside the team list |
+| 7 | `held_then_unassigned` | An engineer held a ticket **30+ min**, then un-assigned it **themselves** without escalating (no move to L1/L3 or `l3_needs_review` up to 5 min after). The alert says whether they left an internal note | Un-assigned by someone else; held 30 min or less; escalated in the window; already L1/L3 when picked up |
+| 8 | `assigned_without_reply` | A customer has waited **60+ min** since the ticket was assigned to an engineer **who is on shift**, with no reply from a person | Engineer off shift (that's theme 5); reassigned or un-assigned; PENDING or CLOSED; escalated to L1/L3; customer not waiting. Internal notes, AI drafts and System messages don't count as a reply |
 
-- **On/off and thresholds:** set in **[`config.py`](config.py)**. The notifier handles 6 themes; theme 6 (L3 escalations) has two checks, 6a and 6b. Today themes 1–5 and 6b are on. Theme 6a is built and tested but off (pending decision D13). Themes 4–5 use the shift roster in `data/`, which covers 9 Oct to 15 Dec 2026.
+- **On/off and thresholds:** set in **[`config.py`](config.py)**. The notifier handles 8 themes; theme 6 (L3 escalations) has two checks, 6a and 6b. Themes 7 and 8 came from shift-guardian (PRD_shift_guardian.md). Today themes 1–5, 6b, 7 and 8 are on. Theme 6a is built and tested but off (pending decision D13). Themes 4, 5 and 8 use the shift roster in `data/`, which covers 9 Oct to 15 Dec 2026.
 - **Which AI model each theme uses:** only theme 1 uses the switchable model, `PENDING_MODEL` in `config.py`:
   - **A:** `von` + `decider:4b`, local in Ollaya.
   - **B:** Jev, hosted.
 
-  Theme 6 (6a and 6b) uses Jev, with Claude as the fallback when `ANTHROPIC_API_KEY` is set. Themes 2–5 use no model: they are plain logic on Trinity events and the roster. Details are in "Theme 1's model: option A or B" and "Theme 6: escalations to L3" below.
+  Theme 6 (6a and 6b) uses Jev, with Claude as the fallback when `ANTHROPIC_API_KEY` is set. Themes 2–5, 7 and 8 use no model: they are plain logic on Trinity events and the roster. Details are in "Theme 1's model: option A or B" and "Theme 6: escalations to L3" below.
 - **Who is monitored:** only the 34 engineers in `config/teams.yaml`, generated from `data/table.tsv`.
 - **Open questions:** tracked in [`pending_decisions.md`](pending_decisions.md). How it all fits together, with diagrams: [`architecture.md`](architecture.md).
 
@@ -137,8 +139,11 @@ Every message appears in terminal 3 and is saved to `fake_slack_posts.jsonl`. Re
 The dashboard is the observability UI for associates. It reads the notifier's `state.db`:
 - every check, model call, alert and error, live;
 - a trace of each alert;
-- each team's numbers;
-- the notifier's health.
+- **Shifts**: who is still Online after their shift (with a timer), who is off shift with tickets still assigned (with Trinity links), and today's roster for each team, with a switcher (`config.py` `ROSTER_VIEWS`; the L2 Expo team is shown here only, never checked);
+- **Team**: each team's numbers, the scorecard (offline after shift ×3, un-assigned without a note ×2, other self-un-assignments ×1, +5 for a repeated pattern; false alarms never count), heavy days, repeated tickets, and a daily report;
+- **System**: the notifier's health, and **Run check now** (the notifier runs a cycle within seconds instead of waiting for the next poll).
+
+Shifts and reports read the notifier's copy of Trinity data (presence every minute, open tickets every 5 minutes), never Trinity itself.
 
 Associates mark alerts correct or false alarm there. It never writes to Trinity.
 

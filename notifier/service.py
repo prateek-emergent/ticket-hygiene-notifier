@@ -28,6 +28,7 @@ from .kb import CONFIDENCE_ORDER, EscalationJudge, JevEscalationJudge
 from .models import Event, Ticket
 from .slack import SlackNotifier, build_message
 from .store import Store, outcome_kind
+from .sync import RUN_DONE_KEY, RUN_REQUEST_KEY, RUN_RESULT_KEY
 from .teams import Directory
 from .trinity import Trinity, connect
 
@@ -38,6 +39,7 @@ log = logging.getLogger(__name__)
 OVERLAP = timedelta(minutes=2)
 # Rule 1 with no reply yet: how often to look again, until the reply window closes.
 RECHECK_AFTER = timedelta(minutes=5)
+RUN_POLL_SECONDS = 5  # how often the idle loop looks for a "Run check now" request
 
 
 def _now() -> datetime:
@@ -371,21 +373,58 @@ class Monitor:
         )
         self.announce("run")
         while True:
+            asked = self.run_requested()
             try:
                 async with connect(self.cfg.trinity_url, self.cfg.trinity_headers) as trinity:
                     await self.discover(trinity)
                     await self.run_due(trinity)
                     if self.shift_checks is not None:
                         await self.shift_checks.run(trinity, _now())
-                    await self.run_sync(trinity)
+                    await self.run_sync(trinity, force=asked is not None)
                 self.cycle_ok()
+                self.run_finished(asked, "ok")
             except Exception as e:
                 self.cycle_failed(f"{type(e).__name__}: {e}")
+                self.run_finished(asked, f"{type(e).__name__}: {e}"[:300])
                 log.exception("poll cycle failed; retrying next interval")
                 self.trace("error", f"Poll cycle failed, retrying in {self.cfg.poll_seconds}s: "
                            f"{type(e).__name__}: {e}"[:500], outcome="error")
             self.heartbeat()
-            await asyncio.sleep(self.cfg.poll_seconds)
+            await self.wait_next_cycle()
+
+    # --- "Run check now" (dashboard, PRD E2) -------------------------------------------------
+
+    def run_requested(self) -> dict | None:
+        """The dashboard's pending "Run check now" request ({"at", "by"}), or None."""
+        if self.store is None:
+            return None
+        try:
+            req = json.loads(self.store.get(RUN_REQUEST_KEY) or "null")
+            return req if req and (self.store.get(RUN_DONE_KEY) or "") < req["at"] else None
+        except Exception:  # a bad request must never stop the loop
+            log.exception("could not read the run-check request")
+            return None
+
+    def run_finished(self, asked: dict | None, result: str) -> None:
+        if asked is None:
+            return
+        try:
+            self.store.put(RUN_RESULT_KEY, result)
+            self.store.put(RUN_DONE_KEY, _now().isoformat())
+            self.trace("run", f"Ran a check now, asked from the dashboard by {asked.get('by')}: {result}",
+                       outcome="ok" if result == "ok" else "error")
+        except Exception:
+            log.exception("could not record the run-check result")
+
+    async def wait_next_cycle(self) -> None:
+        """Sleep poll_seconds, or less when someone presses "Run check now"."""
+        left = float(self.cfg.poll_seconds)
+        while left > 0:
+            step = min(RUN_POLL_SECONDS, left)
+            await asyncio.sleep(step)
+            left -= step
+            if self.run_requested() is not None:
+                return
 
     async def run_sync(self, trinity, force: bool = False) -> None:
         """Refresh the copy of Trinity data. A failure here is logged but doesn't fail the cycle: the checks

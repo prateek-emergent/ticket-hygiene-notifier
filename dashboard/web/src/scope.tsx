@@ -27,7 +27,7 @@ export function ScopeProvider({ me, people, children }: { me: Me; people: People
   const [hours, setHoursState] = useState(() => {
     try {
       const h = Number(localStorage.getItem("hygiene-hours"));
-      if ([1, 24, 168, 720].includes(h)) return h;
+      if ([1, 24, 168, 720, 2160].includes(h)) return h;
     } catch { /* not remembered */ }
     return 24;
   });

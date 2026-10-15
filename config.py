@@ -84,6 +84,15 @@ SHIFTS = {
     "timezone": "Asia/Kolkata",
 }
 
+# Rosters on the dashboard's Shifts page, one per team, with a switcher. Only SHIFTS["file"] above feeds the
+# notifier. The others are roster and views only: no themes, checks, alerts or scorecard (PRD decision 8).
+# `associates` see that roster first.
+ROSTER_VIEWS = [
+    {"name": "L2 Full Stack", "file": SHIFTS["file"], "associates": []},
+    {"name": "L2 Expo", "file": "data/Roster_L1_L2_2026_Schedule - L2 Expo Team (Mid Oct - Dec).csv",
+     "associates": ["nikhita@emergent.sh"]},
+]
+
 # --- Theme 4: status vs shift ---------------------------------------------------------------
 STATUS_CHECK = {
     # Check the engineer's Trinity status this long after their shift starts (should be Online)

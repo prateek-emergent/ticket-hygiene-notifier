@@ -20,6 +20,12 @@ PRESENCE_EVERY = timedelta(seconds=55)  # just under the 60 s cycle, so it runs 
 TICKETS_EVERY = timedelta(minutes=5)
 TICKET_CONCURRENCY = 6
 
+# "Run check now" on the dashboard (PRD E2): the dashboard writes the request, the notifier runs a cycle within
+# seconds (checks, then this sync in full) and writes when it finished and how it went. kv keys:
+RUN_REQUEST_KEY = "run_check_requested"  # {"at": iso, "by": email}
+RUN_DONE_KEY = "run_check_done_at"  # iso
+RUN_RESULT_KEY = "run_check_result"  # "ok" or the error
+
 
 class TrinitySync:
     def __init__(self, monitor):

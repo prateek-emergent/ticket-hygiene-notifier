@@ -1,7 +1,7 @@
 """The dashboard's HTTP server: JSON API, live stream (server-sent events), sign-in, and the built UI.
 
-Read-only on everything the notifier does; the only writes are associates' feedback on alerts and
-sign-in sessions.
+Read-only on everything the notifier does; the only writes are associates' feedback on alerts, sign-in
+sessions, and a "Run check now" request for the notifier (dashboard/shiftviews.py).
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from aiohttp import web
@@ -18,6 +19,7 @@ USER = web.RequestKey("user", dict)
 
 from .auth import COOKIE, AllowList, GoogleVerifier, is_loopback, new_token, token_hash
 from .queries import Data
+from .shiftviews import ShiftViews
 
 log = logging.getLogger(__name__)
 
@@ -61,9 +63,17 @@ def _int(value: str | None) -> int | None:
         return None
 
 
+def _date(value: str | None) -> date | None:
+    try:
+        return date.fromisoformat(value) if value else None
+    except ValueError:
+        return None
+
+
 class Dashboard:
-    def __init__(self, data: Data, allow: AllowList, settings: Settings):
+    def __init__(self, data: Data, allow: AllowList, settings: Settings, views: ShiftViews | None = None):
         self.data = data
+        self.views = views
         self.allow = allow
         self.settings = settings
         self.google = GoogleVerifier(settings.google_client_id)
@@ -87,6 +97,10 @@ class Dashboard:
         r.add_get("/api/activity", self.activity)
         r.add_get("/api/tickets/{ref}", self.ticket)
         r.add_get("/api/engineers", self.engineers)
+        r.add_get("/api/shifts", self.shifts)
+        r.add_get("/api/reports", self.reports)
+        r.add_get("/api/checks/run", self.run_state)
+        r.add_post("/api/checks/run", self.run_check)
         r.add_get("/api/stream", self.stream)
         if (STATIC / "assets").is_dir():
             r.add_static("/assets", STATIC / "assets", append_version=False)
@@ -244,6 +258,29 @@ class Dashboard:
         q = request.query
         return web.json_response(self.data.engineers(_float(q.get("hours"), 24 * 7, 1, 24 * 365),
                                                      q.get("team") or None))
+
+    def _views(self) -> ShiftViews:
+        if self.views is None:
+            raise web.HTTPNotFound(text="shift views aren't set up")
+        return self.views
+
+    async def shifts(self, request: web.Request) -> web.Response:
+        q = request.query
+        return web.json_response(self._views().shifts(datetime.now(timezone.utc), q.get("team") or None,
+                                                      q.get("roster") or None, request[USER]["email"]))
+
+    async def reports(self, request: web.Request) -> web.Response:
+        q = request.query
+        return web.json_response(self._views().reports(datetime.now(timezone.utc), _date(q.get("from")),
+                                                       _date(q.get("to")), _date(q.get("day")),
+                                                       q.get("team") or None))
+
+    async def run_state(self, request: web.Request) -> web.Response:
+        return web.json_response(self._views().run_state())
+
+    async def run_check(self, request: web.Request) -> web.Response:
+        state, accepted = self._views().request_run(request[USER]["email"], datetime.now(timezone.utc))
+        return web.json_response(state, status=202 if accepted else 429)
 
     async def stream(self, request: web.Request) -> web.StreamResponse:
         """Live feed: every new activity row as it is written, plus the notifier's status."""

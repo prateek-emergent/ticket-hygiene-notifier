@@ -1,4 +1,4 @@
-import { Activity as ActivityIcon, Bell, Inbox, LogOut, Moon, Server, Sun, Ticket, Users } from "lucide-react";
+import { Activity as ActivityIcon, Bell, Clock, Inbox, LogOut, Moon, Server, Sun, Ticket, Users } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { api, ApiError, type Me, type People } from "./api";
 import { ago, initials, useData, useNow, WINDOWS } from "./lib";
@@ -14,6 +14,7 @@ import { AlertView } from "./views/Alert";
 import { Gate } from "./views/Gate";
 import { LiveView } from "./views/Live";
 import { ReviewView } from "./views/Review";
+import { ShiftsView } from "./views/Shifts";
 import { SystemView } from "./views/System";
 import { TeamView } from "./views/Team";
 import { TicketFinder, TicketView } from "./views/Ticket";
@@ -48,6 +49,7 @@ const NAV = [
   { to: "/", label: "Live", icon: ActivityIcon, match: ["live"] },
   { to: "/alerts", label: "Alerts", icon: Bell, match: ["alerts", "alert"] },
   { to: "/review", label: "Review", icon: Inbox, match: ["review"] },
+  { to: "/shifts", label: "Shifts", icon: Clock, match: ["shifts"] },
   { to: "/team", label: "Team", icon: Users, match: ["team"] },
   { to: "/tickets", label: "Tickets", icon: Ticket, match: ["ticket", "tickets"] },
   { to: "/system", label: "System", icon: Server, match: ["system"] },
@@ -63,7 +65,7 @@ function Shell({ theme, toggleTheme, onSignOut }: { theme: Theme; toggleTheme: (
   const dot = !status ? "stale" : status.live ? "" : "down";
 
   useEffect(() => {
-    const titles: Record<string, string> = { live: "Live", alerts: "Alerts", alert: "Alert", review: "Review", team: "Team", ticket: "Ticket", tickets: "Tickets", system: "System" };
+    const titles: Record<string, string> = { live: "Live", alerts: "Alerts", alert: "Alert", review: "Review", shifts: "Shifts", team: "Team", ticket: "Ticket", tickets: "Tickets", system: "System" };
     document.title = `${count ? `(${count}) ` : ""}${titles[route.name] ?? "Ticket Hygiene"} · Ticket Hygiene`;
   }, [route.name, count]);
 
@@ -112,6 +114,7 @@ function Shell({ theme, toggleTheme, onSignOut }: { theme: Theme; toggleTheme: (
         {route.name === "alerts" && <AlertsView params={params} />}
         {route.name === "alert" && <AlertView id={route.id} />}
         {route.name === "review" && <ReviewView />}
+        {route.name === "shifts" && <ShiftsView />}
         {route.name === "team" && <TeamView />}
         {route.name === "tickets" && <TicketFinder />}
         {route.name === "ticket" && <TicketView ticketRef={route.ref} />}

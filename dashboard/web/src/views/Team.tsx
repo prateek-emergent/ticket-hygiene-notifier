@@ -2,6 +2,7 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 import { useState } from "react";
 import { api, type Engineer } from "../api";
 import { ago, RULES, useData, windowLabel } from "../lib";
+import { TeamReports } from "./Reports";
 import { useLive } from "../live";
 import { linkProps } from "../router";
 import { useScope } from "../scope";
@@ -65,6 +66,7 @@ export function TeamView() {
           </div>
         )}
       </section>
+      <TeamReports />
     </div>
   );
 }

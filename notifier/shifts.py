@@ -124,8 +124,10 @@ def is_roster_grid(raw: list[list]) -> bool:
     )
 
 
-def parse_roster_grid(raw: list[list], around: datetime):
-    """-> (dated {(email, date): (start, end) | (None, None)}, unknown {(email, date)}, info {email: {...}})"""
+def parse_roster_grid(raw: list[list], around: datetime, codes: dict | None = None):
+    """-> (dated {(email, date): (start, end) | (None, None)}, unknown {(email, date)}, info {email: {...}})
+
+    `codes`, when given, is filled with each cell as written ({(email, date): "6A-3P" | "Off" | "swap(12th)"})."""
     dated, unknown, info = {}, set(), {}
     section, columns = "", {}
     for r in raw:
@@ -142,7 +144,10 @@ def parse_roster_grid(raw: list[list], around: datetime):
         email = cells[1].lower()
         info[email] = {"name": cells[0], "role": cells[2] if len(cells) > 2 else "", "block": section}
         for i, d in columns.items():
-            parsed = parse_shift_code(cells[i] if i < len(cells) else "")
+            cell = cells[i] if i < len(cells) else ""
+            if codes is not None:
+                codes[(email, d)] = cell
+            parsed = parse_shift_code(cell)
             if parsed == "unknown":
                 unknown.add((email, d))
             else:
@@ -241,3 +246,30 @@ class ShiftCalendar:
                 if t0 < s.end <= t1:
                     out.append((email, "end", s))
         return sorted(out, key=lambda b: b[2].start if b[1] == "start" else b[2].end)
+
+
+def roster_day(path: str | Path, tz_name: str, day: date) -> list[dict]:
+    """Everyone in a roster grid file on one local day, as written: name, email, role, block, the cell ("6A-3P",
+    "Off", "Swapped off (20th oct)") and, when it is a shift, its start and end in UTC. For the dashboard's views
+    (any team's roster, including ones the notifier never checks)."""
+    tz = ZoneInfo(tz_name)
+    raw = _raw_rows(Path(path))
+    if not is_roster_grid(raw):
+        return []
+    codes: dict = {}
+    _, _, info = parse_roster_grid(raw, datetime.combine(day, time(12), tz), codes)
+    out = []
+    for email, who in info.items():
+        cell = codes.get((email, day), "")
+        parsed = parse_shift_code(cell)
+        start = end = None
+        if isinstance(parsed, tuple):
+            start = datetime.combine(day, parsed[0], tz)
+            end = datetime.combine(day, parsed[1], tz)
+            if end <= start:
+                end += timedelta(days=1)
+            start, end = start.astimezone(timezone.utc), end.astimezone(timezone.utc)
+        out.append({"email": email, "name": who["name"], "role": who["role"], "block": who["block"], "code": cell,
+                    "kind": "shift" if start else "none" if not cell else "off" if parsed is None else "unknown",
+                    "start": start, "end": end})
+    return out

@@ -60,6 +60,42 @@ export interface TicketTrace {
   checks: { rule: string; trigger_event_id: string; due_at: string; attempts: number; done: number; outcome: string | null; engineer: string | null; created_at: string | null; finished_at: string | null }[];
 }
 
+export interface TicketLink { ticket_id: string; num: number | null; subject: string | null; level?: string | null; url: string | null }
+export interface PersonRef { email: string; name: string; team: string | null }
+
+export interface RunState { requested_at: string | null; by: string | null; done_at: string | null; result: string | null; pending: boolean }
+
+export interface RosterPerson {
+  email: string; name: string; role: string; block: string; code: string;
+  state: "on" | "later" | "done" | "off" | "unknown" | "none"; start: string | null; end: string | null;
+  monitored: boolean; presence: string | null;
+}
+
+export interface Shifts {
+  now: string; timezone: string; team: string | null;
+  still_online: (PersonRef & { shift_start: string; shift_end: string; online_minutes: number; presence: string | null; alerted: boolean; open_tickets: TicketLink[] })[];
+  recent_ends: (PersonRef & { shift_end: string; outcome: string; online_minutes: number | null; offline_at: string | null })[];
+  off_shift_with_tickets: (PersonRef & { presence: string | null; tickets: TicketLink[]; shift_ended: string | null; next_shift: string | null })[];
+  roster: { views: string[]; name: string | null; day?: string; people: RosterPerson[]; roster_only?: boolean };
+  synced: { presence: string | null; open_tickets: string | null };
+  run_check: RunState;
+}
+
+export interface Reports {
+  from: string; to: string; timezone: string; team: string | null; rules: { id: string; title: string }[];
+  engineers: (PersonRef & { alerts: number; by_rule: Record<string, number>; false_alarms: number; unassign_with_note: number; unassign_without_note: number; offline_violations: number })[];
+  heavy_days: (PersonRef & { day: string; count: number; by_rule: Record<string, number> })[];
+  repeated_tickets: (TicketLink & { count: number; rules: string[]; engineers: PersonRef[]; last_at: string })[];
+  scorecard: (PersonRef & { score: number; rating: "needs_attention" | "watch" | "good"; offline_violations: number; unassign_without_note: number; unassign_with_note: number; patterns: string[]; other_alerts: number; false_alarms: number })[];
+  daily: {
+    day: string; pattern_days: number;
+    didnt_go_offline: (PersonRef & { shift_end: string; online_minutes: number | null; outcome: string })[];
+    stayed_online_late: (PersonRef & { shift_end: string; online_minutes: number | null; outcome: string })[];
+    unassigned_without_note: (PersonRef & TicketLink & { at: string; held_minutes: number | null })[];
+    patterns: (PersonRef & { what: string; url?: string | null })[];
+  };
+}
+
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
@@ -107,4 +143,8 @@ export const api = {
     request<Activity[]>(`/api/activity${qs(f)}`),
   ticket: (ref: string) => request<TicketTrace>(`/api/tickets/${encodeURIComponent(ref)}`),
   engineers: (hours: number, team: string | null) => request<Engineer[]>(`/api/engineers${qs({ hours, team })}`),
+  shifts: (team: string | null, roster: string | null) => request<Shifts>(`/api/shifts${qs({ team, roster })}`),
+  reports: (f: { from?: string; to?: string; day?: string; team?: string | null }) => request<Reports>(`/api/reports${qs(f)}`),
+  runState: () => request<RunState>("/api/checks/run"),
+  runCheck: () => post<RunState>("/api/checks/run", {}),
 };
