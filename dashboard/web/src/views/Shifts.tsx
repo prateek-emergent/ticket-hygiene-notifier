@@ -149,7 +149,7 @@ export function ShiftsView() {
       <div className="panes" style={{ padding: 0, gridTemplateColumns: mode === "week" ? "minmax(0, 1fr)" : "minmax(0, 1.5fr) minmax(0, 1fr)" }}>
         <section className="glass pane" aria-labelledby="roster">
           <div className="pane-head">
-            <h3 id="roster">{mode === "week" ? "Roster, next 7 days" : "Today's roster"}</h3>
+            <h3 id="roster">{mode === "week" ? "Weekly roster" : "Today's roster"}</h3>
             <span className="chips" role="group" aria-label="Roster view">
               <button className="chip" aria-pressed={mode === "today"} onClick={() => setMode("today")}>Today</button>
               <button className="chip" aria-pressed={mode === "week"} onClick={() => setMode("week")}>Week</button>
